@@ -4,8 +4,10 @@ import com.piotrek.groundworks.GroundworksMod;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 
@@ -14,8 +16,18 @@ import net.minecraft.world.item.Item;
  */
 public final class GroundworksItems {
 
+    public static final Identifier DEBUG_EXCAVATION_TOOL_ID = Identifier.fromNamespaceAndPath(
+            GroundworksMod.MOD_ID, "debug_excavation_tool"
+    );
+
+    public static final ResourceKey<Item> DEBUG_EXCAVATION_TOOL_KEY = ResourceKey.create(
+            Registries.ITEM, DEBUG_EXCAVATION_TOOL_ID
+    );
+
     public static final DebugExcavationTool DEBUG_EXCAVATION_TOOL = new DebugExcavationTool(
-            new Item.Properties().stacksTo(1)
+            new Item.Properties()
+                    .setId(DEBUG_EXCAVATION_TOOL_KEY)
+                    .stacksTo(1)
     );
 
     public static final CreativeModeTab TAB = FabricCreativeModeTab.builder()
@@ -31,7 +43,7 @@ public final class GroundworksItems {
     public static void register() {
         Registry.register(
                 BuiltInRegistries.ITEM,
-                Identifier.fromNamespaceAndPath(GroundworksMod.MOD_ID, "debug_excavation_tool"),
+                DEBUG_EXCAVATION_TOOL_KEY,
                 DEBUG_EXCAVATION_TOOL
         );
 
