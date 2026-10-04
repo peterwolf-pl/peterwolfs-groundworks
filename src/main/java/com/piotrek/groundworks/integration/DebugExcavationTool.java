@@ -19,28 +19,17 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.function.Consumer;
 
 /**
- * Debug excavation tool for Stage 1C.
- *
- * <h2>Behavior</h2>
- * <ul>
- *   <li><b>Right-click on block:</b> If tool is empty, excavate 32 units.
- *       If tool has material, deposit 32 units.</li>
- *   <li><b>Sneak + right-click:</b> Deposit mode (deposits material above clicked block).</li>
- * </ul>
- *
- * <p>The tool stores material internally via CustomData on the ItemStack.
- * This is temporary developer functionality to prove remove → store → deposit → conserve.
+ * Debug excavation shovel that produces local spherical craters matching raycast impact position.
  */
 public class DebugExcavationTool extends Item {
 
-    /** Default units per excavation/deposit operation. */
     public static final int UNITS_PER_USE = 32;
-    /** Maximum units the tool can hold. */
-    public static final int MAX_CAPACITY = 512 * 16; // 16 blocks worth
+    public static final int MAX_CAPACITY = 512 * 16;
 
     public DebugExcavationTool(Properties properties) {
         super(properties);
@@ -57,6 +46,7 @@ public class DebugExcavationTool extends Item {
 
         ItemStack stack = context.getItemInHand();
         BlockPos pos = context.getClickedPos();
+        Vec3 hitLocation = context.getClickLocation();
 
         int storedUnits = getStoredUnits(stack);
         String storedMat = getStoredMaterial(stack);
@@ -72,7 +62,6 @@ public class DebugExcavationTool extends Item {
                     return InteractionResult.FAIL;
                 }
 
-                // Deposit on the face the player clicked (above the clicked block)
                 BlockPos depositPos = pos.relative(context.getClickedFace());
                 int toDeposit = Math.min(UNITS_PER_USE, storedUnits);
 
@@ -101,12 +90,11 @@ public class DebugExcavationTool extends Item {
                                 .withStyle(ChatFormatting.YELLOW));
             }
         } else {
-            // Normal click: excavate
-            ExcavationResult result = ExcavationApi.excavate(
-                    serverLevel, pos, UNITS_PER_USE);
+            // Normal click: excavate localized spherical crater at hit point!
+            ExcavationResult result = ExcavationApi.excavateAt(
+                    serverLevel, pos, hitLocation, UNITS_PER_USE);
 
             if (result.success()) {
-                // Check material compatibility
                 if (storedMat != null && !storedMat.equals(result.material().name())) {
                     player.sendOverlayMessage(
                             Component.literal("Tool contains " + storedMat

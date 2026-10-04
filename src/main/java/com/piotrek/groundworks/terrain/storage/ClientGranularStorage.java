@@ -1,4 +1,4 @@
-package com.piotrek.groundworks.client.storage;
+package com.piotrek.groundworks.terrain.storage;
 
 import com.piotrek.groundworks.GroundworksMod;
 import com.piotrek.groundworks.networking.GranularCellSyncPayload;

@@ -1,44 +1,71 @@
 package com.piotrek.groundworks.api.excavation;
 
 import com.piotrek.groundworks.api.material.GranularMaterial;
+import com.piotrek.groundworks.networking.GranularSyncHandler;
 import com.piotrek.groundworks.terrain.cell.DirtyFlags;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The excavation API for removing material from granular terrain.
- *
- * <p>This is the single entry point for all excavation operations.
- * Shovels, excavator buckets, drills, and tunnel boring machines
- * all go through this API.
- *
- * <h2>Contract</h2>
- * <ul>
- *   <li>Returns exactly how many units were removed.</li>
- *   <li>The caller is responsible for storing the removed material.</li>
- *   <li>Material is never created or destroyed — only transferred.</li>
- * </ul>
- */
 public final class ExcavationApi {
 
     private ExcavationApi() {}
 
-    /**
-     * Remove up to {@code maxUnits} from a single block position.
-     *
-     * <p>If the position is a vanilla convertible block, it is lazily
-     * converted first.
-     *
-     * @param level    the server level
-     * @param pos      the target block position
-     * @param maxUnits maximum units to remove
-     * @return the excavation result
-     */
+    public static ExcavationResult excavateAt(
+            ServerLevel level, BlockPos pos, Vec3 hitLocation, int maxUnits) {
+
+        if (maxUnits <= 0) return ExcavationResult.NONE;
+
+        GranularWorldStorage storage = GranularWorldStorage.get(level);
+        GranularCell cell = storage.getOrConvert(pos);
+        if (cell == null) return ExcavationResult.NONE;
+
+        // Convert world hit location to local microvoxel coordinates (0.0 .. 8.0)
+        double localX = (hitLocation.x - pos.getX()) * GranularCell.RESOLUTION;
+        double localY = (hitLocation.y - pos.getY()) * GranularCell.RESOLUTION;
+        double localZ = (hitLocation.z - pos.getZ()) * GranularCell.RESOLUTION;
+
+        localX = Math.max(0.0, Math.min(GranularCell.RESOLUTION - 0.01, localX));
+        localY = Math.max(0.0, Math.min(GranularCell.RESOLUTION - 0.01, localY));
+        localZ = Math.max(0.0, Math.min(GranularCell.RESOLUTION - 0.01, localZ));
+
+        // Use a spherical crater brush with radius ~3.2 microvoxels (~40cm)
+        List<ExcavationBrush.LocalVoxel> brushVoxels = ExcavationBrush.sphere(localX, localY, localZ, 3.2);
+
+        int removed = 0;
+        for (ExcavationBrush.LocalVoxel v : brushVoxels) {
+            if (removed >= maxUnits) break;
+            if (cell.clear(v.x(), v.y(), v.z())) {
+                removed++;
+            }
+        }
+
+        if (removed < maxUnits) {
+            removed += cell.removeFromTop(maxUnits - removed);
+        }
+
+        if (removed > 0) {
+            cell.markDirty(DirtyFlags.SYNC | DirtyFlags.MESH | DirtyFlags.SIMULATE);
+            storage.enqueueDirty(pos);
+            storage.setDirty();
+
+            // Broadcast immediate sync to clients right after excavation
+            GranularSyncHandler.sendCellUpdate(level, pos, cell);
+
+            if (cell.isEmpty()) {
+                storage.removeCell(pos);
+            }
+        }
+
+        List<BlockPos> affected = removed > 0 ? List.of(pos.immutable()) : List.of();
+        return new ExcavationResult(cell.material(), removed, affected);
+    }
+
     public static ExcavationResult excavate(ServerLevel level, BlockPos pos, int maxUnits) {
         if (maxUnits <= 0) return ExcavationResult.NONE;
 
@@ -52,9 +79,11 @@ public final class ExcavationApi {
         if (removed > 0) {
             cell.markDirty(DirtyFlags.SYNC | DirtyFlags.MESH | DirtyFlags.SIMULATE);
             storage.enqueueDirty(pos);
-            storage.setDirty(); // mark SavedData dirty
+            storage.setDirty();
 
-            // If cell is now empty, clean up
+            // Immediate sync to clients
+            GranularSyncHandler.sendCellUpdate(level, pos, cell);
+
             if (cell.isEmpty()) {
                 storage.removeCell(pos);
             }
@@ -64,15 +93,6 @@ public final class ExcavationApi {
         return new ExcavationResult(material, removed, affected);
     }
 
-    /**
-     * Remove up to {@code maxUnits} from multiple adjacent positions.
-     * Useful for large excavation shapes (bucket, blade).
-     *
-     * @param level     the server level
-     * @param positions the target positions
-     * @param maxUnits  total maximum units to remove across all positions
-     * @return the combined excavation result
-     */
     public static ExcavationResult excavateMulti(
             ServerLevel level, List<BlockPos> positions, int maxUnits) {
 

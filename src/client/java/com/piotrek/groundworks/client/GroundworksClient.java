@@ -1,13 +1,15 @@
 package com.piotrek.groundworks.client;
 
 import com.piotrek.groundworks.GroundworksMod;
+import com.piotrek.groundworks.client.render.GranularBlockEntityRenderer;
 import com.piotrek.groundworks.client.render.GranularMeshCache;
 import com.piotrek.groundworks.client.render.GranularTerrainRenderer;
-import com.piotrek.groundworks.client.storage.ClientGranularStorage;
+import com.piotrek.groundworks.terrain.storage.ClientGranularStorage;
 import com.piotrek.groundworks.networking.GranularCellSyncPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 
 public class GroundworksClient implements ClientModInitializer {
@@ -24,7 +26,13 @@ public class GroundworksClient implements ClientModInitializer {
             });
         });
 
-        // Register world renderer hook
+        // Register BlockEntityRenderer for GranularBlock
+        BlockEntityRendererRegistry.register(
+                GroundworksMod.GRANULAR_BLOCK_ENTITY,
+                GranularBlockEntityRenderer::new
+        );
+
+        // Register world-level fallback renderer hook
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(GranularTerrainRenderer::render);
 
         // Clear client caches when disconnecting
