@@ -1,0 +1,95 @@
+package com.piotrek.groundworks.api.material;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Registry of all known granular materials.
+ *
+ * <p>Materials are registered at mod init and looked up by id or by vanilla BlockState.
+ * Id 0 is reserved for {@link GranularMaterial#EMPTY}.
+ */
+public final class GranularMaterialRegistry {
+
+    private static final List<GranularMaterial> BY_ID = new ArrayList<>();
+    private static boolean bootstrapped = false;
+
+    // Well-known material ids (assigned during bootstrap)
+    public static GranularMaterial DIRT;
+    public static GranularMaterial SAND;
+    public static GranularMaterial GRAVEL;
+
+    private GranularMaterialRegistry() {}
+
+    /**
+     * Register the Stage 1 materials: dirt, sand, gravel.
+     * Called once from mod init.
+     */
+    public static void bootstrap() {
+        if (bootstrapped) return;
+        bootstrapped = true;
+
+        // Id 0 = empty
+        BY_ID.add(GranularMaterial.EMPTY);
+
+        DIRT = register(new GranularMaterial(
+                1, "dirt", () -> Blocks.DIRT,
+                1500f, 35f, 0.5f, 0.3f
+        ));
+        SAND = register(new GranularMaterial(
+                2, "sand", () -> Blocks.SAND,
+                1600f, 30f, 0.1f, 0.6f
+        ));
+        GRAVEL = register(new GranularMaterial(
+                3, "gravel", () -> Blocks.GRAVEL,
+                1800f, 38f, 0.2f, 0.4f
+        ));
+    }
+
+    private static GranularMaterial register(GranularMaterial material) {
+        if (material.id() != BY_ID.size()) {
+            throw new IllegalArgumentException(
+                    "Material id mismatch: expected " + BY_ID.size() + ", got " + material.id());
+        }
+        BY_ID.add(material);
+        return material;
+    }
+
+    public static GranularMaterial byId(int id) {
+        if (id < 0 || id >= BY_ID.size()) return GranularMaterial.EMPTY;
+        return BY_ID.get(id);
+    }
+
+    @Nullable
+    public static GranularMaterial forBlockState(BlockState state) {
+        for (int i = 1; i < BY_ID.size(); i++) {
+            if (BY_ID.get(i).matchesBlock(state)) {
+                return BY_ID.get(i);
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    public static GranularMaterial byName(String name) {
+        for (GranularMaterial mat : BY_ID) {
+            if (mat.name().equals(name)) return mat;
+        }
+        return null;
+    }
+
+    public static List<GranularMaterial> all() {
+        return Collections.unmodifiableList(BY_ID);
+    }
+
+    public static int count() {
+        return BY_ID.size();
+    }
+}

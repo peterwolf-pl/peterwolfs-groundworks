@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "pw_groundworks",
+  "version": "${version}",
+  "name": "Peterwolf's Groundworks",
+  "description": "Volumetric deformable granular terrain engine for Minecraft.",
+  "authors": ["Piotrek"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.piotrek.groundworks.GroundworksMod"],
+    "client": ["com.piotrek.groundworks.client.GroundworksClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
