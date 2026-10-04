@@ -17,6 +17,9 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * BlockEntityRenderer for {@link GranularBlockEntity}.
+ *
+ * <p>Uses {@code RenderTypes.debugQuads()} which expects exactly
+ * POSITION and COLOR vertex format.
  */
 public class GranularBlockEntityRenderer implements BlockEntityRenderer<GranularBlockEntity, GranularBlockRenderState> {
 
@@ -50,7 +53,6 @@ public class GranularBlockEntityRenderer implements BlockEntityRenderer<Granular
         BlockPos pos = state.pos;
         if (pos == null) return;
 
-        // Try client storage first, fallback to checking if cell exists
         GranularCell cell = ClientGranularStorage.getCell(pos);
         if (cell == null || cell.isEmpty()) {
             return;
@@ -80,24 +82,20 @@ public class GranularBlockEntityRenderer implements BlockEntityRenderer<Granular
         int finalB = b;
         int alpha = 255;
 
-        // Render solid geometry through solidMovingBlock render type for full world depth
+        // Render debug quads with matching POSITION_COLOR format
         collector.submitCustomGeometry(
                 stack,
-                RenderTypes.solidMovingBlock(),
+                RenderTypes.debugQuads(),
                 (pose, consumer) -> {
                     for (GranularSurfaceMesher.Quad quad : mesh.quads()) {
                         consumer.addVertex(pose, quad.v0().x, quad.v0().y, quad.v0().z)
-                                .setColor(finalR, finalG, finalB, alpha)
-                                .setNormal(pose, quad.normal().x, quad.normal().y, quad.normal().z);
+                                .setColor(finalR, finalG, finalB, alpha);
                         consumer.addVertex(pose, quad.v1().x, quad.v1().y, quad.v1().z)
-                                .setColor(finalR, finalG, finalB, alpha)
-                                .setNormal(pose, quad.normal().x, quad.normal().y, quad.normal().z);
+                                .setColor(finalR, finalG, finalB, alpha);
                         consumer.addVertex(pose, quad.v2().x, quad.v2().y, quad.v2().z)
-                                .setColor(finalR, finalG, finalB, alpha)
-                                .setNormal(pose, quad.normal().x, quad.normal().y, quad.normal().z);
+                                .setColor(finalR, finalG, finalB, alpha);
                         consumer.addVertex(pose, quad.v3().x, quad.v3().y, quad.v3().z)
-                                .setColor(finalR, finalG, finalB, alpha)
-                                .setNormal(pose, quad.normal().x, quad.normal().y, quad.normal().z);
+                                .setColor(finalR, finalG, finalB, alpha);
                     }
                 }
         );
