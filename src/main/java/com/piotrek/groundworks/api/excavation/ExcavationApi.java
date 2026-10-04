@@ -8,6 +8,7 @@ import com.piotrek.groundworks.terrain.cell.GranularCell;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
@@ -61,7 +62,7 @@ public final class ExcavationApi {
             if (be instanceof GranularBlockEntity gbe) {
                 gbe.setCell(cell);
                 gbe.setChanged();
-                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
+                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), Block.UPDATE_ALL_IMMEDIATE);
             }
 
             // Broadcast immediate sync to clients right after excavation
@@ -96,7 +97,7 @@ public final class ExcavationApi {
             if (be instanceof GranularBlockEntity gbe) {
                 gbe.setCell(cell);
                 gbe.setChanged();
-                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
+                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), Block.UPDATE_ALL_IMMEDIATE);
             }
 
             // Immediate sync to clients

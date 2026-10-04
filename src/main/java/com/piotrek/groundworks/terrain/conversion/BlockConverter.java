@@ -7,6 +7,7 @@ import com.piotrek.groundworks.block.entity.GranularBlockEntity;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -34,13 +35,14 @@ public final class BlockConverter {
 
         // Replace vanilla block with the anchor GranularBlock immediately
         level.setBlock(pos, GroundworksMod.GRANULAR_BLOCK.defaultBlockState(),
-                3 /* NOTIFY_CLIENTS | BLOCK_UPDATE */);
+                Block.UPDATE_ALL_IMMEDIATE);
 
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof GranularBlockEntity granularBe) {
             granularBe.setMaterialId(material.id());
             granularBe.setCell(cell);
             granularBe.setChanged();
+            level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), Block.UPDATE_ALL_IMMEDIATE);
         }
 
         GroundworksMod.LOGGER.info(

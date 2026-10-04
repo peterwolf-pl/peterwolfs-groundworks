@@ -6,4 +6,5 @@ import net.minecraft.core.BlockPos;
 public final class GranularBlockRenderState extends BlockEntityRenderState {
     public BlockPos pos;
     public int materialId;
+    public long[] occupancy;
 }

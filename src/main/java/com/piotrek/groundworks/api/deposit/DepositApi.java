@@ -10,6 +10,7 @@ import com.piotrek.groundworks.terrain.conversion.BlockConverter;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -38,13 +39,13 @@ public final class DepositApi {
                     storage.putCell(pos, cell);
 
                     // Place anchor block in world
-                    level.setBlock(pos, GroundworksMod.GRANULAR_BLOCK.defaultBlockState(), 3);
+                    level.setBlock(pos, GroundworksMod.GRANULAR_BLOCK.defaultBlockState(), Block.UPDATE_ALL_IMMEDIATE);
                     BlockEntity be = level.getBlockEntity(pos);
                     if (be instanceof GranularBlockEntity gbe) {
                         gbe.setMaterialId(material.id());
                         gbe.setCell(cell);
                         gbe.setChanged();
-                        level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
+                        level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), Block.UPDATE_ALL_IMMEDIATE);
                     }
 
                     cell.markDirty(DirtyFlags.ALL);
@@ -86,7 +87,7 @@ public final class DepositApi {
             if (be instanceof GranularBlockEntity gbe) {
                 gbe.setCell(cell);
                 gbe.setChanged();
-                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
+                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), Block.UPDATE_ALL_IMMEDIATE);
             }
 
             // Immediate client sync

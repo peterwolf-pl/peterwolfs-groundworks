@@ -17,9 +17,6 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * BlockEntityRenderer for {@link GranularBlockEntity}.
- *
- * <p>Uses {@code RenderTypes.debugQuads()} which expects exactly
- * POSITION and COLOR vertex format.
  */
 public class GranularBlockEntityRenderer implements BlockEntityRenderer<GranularBlockEntity, GranularBlockRenderState> {
 
@@ -41,6 +38,13 @@ public class GranularBlockEntityRenderer implements BlockEntityRenderer<Granular
         BlockEntityRenderer.super.extractRenderState(blockEntity, state, partialTicks, cameraPosition, breakProgress);
         state.pos = blockEntity.getBlockPos();
         state.materialId = blockEntity.getMaterialId();
+
+        GranularCell cell = blockEntity.getCell();
+        if (cell != null) {
+            state.occupancy = cell.occupancy().clone();
+        } else {
+            state.occupancy = null;
+        }
     }
 
     @Override
@@ -53,12 +57,22 @@ public class GranularBlockEntityRenderer implements BlockEntityRenderer<Granular
         BlockPos pos = state.pos;
         if (pos == null) return;
 
-        GranularCell cell = ClientGranularStorage.getCell(pos);
+        // Use direct cell from blockEntity render state or fallback to ClientGranularStorage
+        GranularCell cell = null;
+        if (state.occupancy != null) {
+            cell = new GranularCell();
+            cell.setMaterialId(state.materialId);
+            System.arraycopy(state.occupancy, 0, cell.occupancy(), 0, GranularCell.LONGS);
+            cell.recount();
+        } else {
+            cell = ClientGranularStorage.getCell(pos);
+        }
+
         if (cell == null || cell.isEmpty()) {
             return;
         }
 
-        GranularSurfaceMesher.CellMesh mesh = GranularMeshCache.getOrBuild(pos.asLong(), cell);
+        GranularSurfaceMesher.CellMesh mesh = GranularSurfaceMesher.generateMesh(cell);
         if (mesh.isEmpty()) return;
 
         // Material color tinting
@@ -82,7 +96,6 @@ public class GranularBlockEntityRenderer implements BlockEntityRenderer<Granular
         int finalB = b;
         int alpha = 255;
 
-        // Render debug quads with matching POSITION_COLOR format
         collector.submitCustomGeometry(
                 stack,
                 RenderTypes.debugQuads(),
