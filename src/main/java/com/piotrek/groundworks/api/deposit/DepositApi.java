@@ -42,6 +42,9 @@ public final class DepositApi {
                     BlockEntity be = level.getBlockEntity(pos);
                     if (be instanceof GranularBlockEntity gbe) {
                         gbe.setMaterialId(material.id());
+                        gbe.setCell(cell);
+                        gbe.setChanged();
+                        level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
                     }
 
                     cell.markDirty(DirtyFlags.ALL);
@@ -78,6 +81,13 @@ public final class DepositApi {
             cell.markDirty(DirtyFlags.ALL);
             storage.enqueueDirty(pos);
             storage.setDirty();
+
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof GranularBlockEntity gbe) {
+                gbe.setCell(cell);
+                gbe.setChanged();
+                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
+            }
 
             // Immediate client sync
             GranularSyncHandler.sendCellUpdate(level, pos, cell);

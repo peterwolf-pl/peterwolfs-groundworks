@@ -1,12 +1,14 @@
 package com.piotrek.groundworks.api.excavation;
 
 import com.piotrek.groundworks.api.material.GranularMaterial;
+import com.piotrek.groundworks.block.entity.GranularBlockEntity;
 import com.piotrek.groundworks.networking.GranularSyncHandler;
 import com.piotrek.groundworks.terrain.cell.DirtyFlags;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
@@ -54,11 +56,20 @@ public final class ExcavationApi {
             storage.enqueueDirty(pos);
             storage.setDirty();
 
+            // Mark BlockEntity changed to trigger block entity update packet to client
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof GranularBlockEntity gbe) {
+                gbe.setCell(cell);
+                gbe.setChanged();
+                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
+            }
+
             // Broadcast immediate sync to clients right after excavation
             GranularSyncHandler.sendCellUpdate(level, pos, cell);
 
             if (cell.isEmpty()) {
                 storage.removeCell(pos);
+                level.removeBlock(pos, false);
             }
         }
 
@@ -81,11 +92,19 @@ public final class ExcavationApi {
             storage.enqueueDirty(pos);
             storage.setDirty();
 
+            BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof GranularBlockEntity gbe) {
+                gbe.setCell(cell);
+                gbe.setChanged();
+                level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), 3);
+            }
+
             // Immediate sync to clients
             GranularSyncHandler.sendCellUpdate(level, pos, cell);
 
             if (cell.isEmpty()) {
                 storage.removeCell(pos);
+                level.removeBlock(pos, false);
             }
         }
 

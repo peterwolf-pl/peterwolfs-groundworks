@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "pw_groundworks:block/granular_block"
+    }
+  }
+}

@@ -70,3 +70,12 @@ jar {
 		rename { "${it}_$projectName" }
 	}
 }
+
+publishing {
+	publications {
+		create('mavenJava', MavenPublication) {
+			from components.java
+		}
+	}
+}
+

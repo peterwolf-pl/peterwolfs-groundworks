@@ -39,10 +39,12 @@ public final class BlockConverter {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof GranularBlockEntity granularBe) {
             granularBe.setMaterialId(material.id());
+            granularBe.setCell(cell);
+            granularBe.setChanged();
         }
 
-        GroundworksMod.LOGGER.debug(
-                "[Groundworks] Converted {} at {} to granular {} ({} units)",
+        GroundworksMod.LOGGER.info(
+                "[Groundworks] Successfully converted {} at {} to granular {} ({} units)",
                 state.getBlock(), pos, material.name(), cell.unitCount());
 
         return cell;

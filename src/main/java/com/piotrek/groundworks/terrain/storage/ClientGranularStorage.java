@@ -12,9 +12,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Client-side mirror of granular cells for rendering and collision prediction.
- *
- * <p>Receives authoritative updates from the server via {@link GranularCellSyncPayload}.
- * The client never modifies authoritative terrain units on its own.
  */
 public final class ClientGranularStorage {
 
@@ -28,7 +25,6 @@ public final class ClientGranularStorage {
         long key = pos.asLong();
 
         if (payload.unitCount() <= 0) {
-            // Removal
             CELLS.remove(key);
             return;
         }
@@ -36,17 +32,16 @@ public final class ClientGranularStorage {
         GranularCell cell = CELLS.get(key);
 
         if (cell == null || !payload.isDelta()) {
-            // Full sync or new cell
             cell = new GranularCell();
             cell.setMaterialId(payload.materialId());
             if (payload.words().length == GranularCell.LONGS) {
                 System.arraycopy(payload.words(), 0, cell.occupancy(), 0, GranularCell.LONGS);
             }
+            cell.recount();
             cell.invalidateAllColumns();
             cell.markDirty(DirtyFlags.MESH);
             CELLS.put(key, cell);
         } else {
-            // Delta update
             cell.setMaterialId(payload.materialId());
             long[] occ = cell.occupancy();
             int mask = payload.changedWordMask();
@@ -57,6 +52,7 @@ public final class ClientGranularStorage {
                     occ[i] = payload.words()[wordIdx++];
                 }
             }
+            cell.recount();
             cell.invalidateAllColumns();
             cell.markDirty(DirtyFlags.MESH);
         }
@@ -64,6 +60,11 @@ public final class ClientGranularStorage {
         GroundworksMod.LOGGER.debug(
                 "[Groundworks-Client] Updated cell at {} (units={}, rev={})",
                 pos, cell.unitCount(), payload.revision());
+    }
+
+    /** Directly put or update a cell on the client (e.g. from BlockEntity packet). */
+    public static void putCell(BlockPos pos, GranularCell cell) {
+        CELLS.put(pos.asLong(), cell);
     }
 
     /** Query cell on client. */
