@@ -3,10 +3,11 @@ package com.piotrek.groundworks.terrain.storage;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.piotrek.groundworks.GroundworksMod;
+import com.piotrek.groundworks.networking.GranularSyncHandler;
+import com.piotrek.groundworks.simulation.GranularRelaxationEngine;
 import com.piotrek.groundworks.terrain.cell.DirtyFlags;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
 import com.piotrek.groundworks.terrain.conversion.BlockConverter;
-import com.piotrek.groundworks.networking.GranularSyncHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
@@ -181,8 +182,17 @@ public class GranularWorldStorage extends SavedData {
             GranularCell cell = cells.get(packedPos);
             if (cell == null) continue;
 
+            BlockPos pos = BlockPos.of(packedPos);
+
+            // Simulation step: run relaxation if flagged
+            if (cell.isDirty(DirtyFlags.SIMULATE)) {
+                int transferred = GranularRelaxationEngine.relaxCell(this, pos, cell);
+                unitsMovedLastTick += transferred;
+                cell.clearDirtyFlag(DirtyFlags.SIMULATE);
+            }
+
+            // Sync dirty cells to clients
             if (cell.isDirty(DirtyFlags.SYNC) && level != null) {
-                BlockPos pos = BlockPos.of(packedPos);
                 GranularSyncHandler.sendCellUpdate(level, pos, cell);
                 cell.clearDirtyFlag(DirtyFlags.SYNC);
                 syncPacketsSent++;
