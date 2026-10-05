@@ -1,6 +1,7 @@
 package com.piotrek.groundworks.api.excavation;
 
 import com.piotrek.groundworks.api.material.GranularMaterial;
+import com.piotrek.groundworks.api.world.WorldSpaceApi;
 import com.piotrek.groundworks.block.entity.GranularBlockEntity;
 import com.piotrek.groundworks.networking.GranularSyncHandler;
 import com.piotrek.groundworks.terrain.cell.DirtyFlags;
@@ -125,17 +126,27 @@ public final class ExcavationApi {
         for (BlockPos pos : positions) {
             if (totalRemoved >= maxUnits) break;
 
+            GranularMaterial candidate = WorldSpaceApi.getMaterial(level, pos);
+            if (candidate == null || candidate.id() == 0) {
+                continue;
+            }
+
+            if (material == null) {
+                material = candidate;
+            } else if (candidate.id() != material.id()) {
+                continue;
+            }
+
             int remaining = maxUnits - totalRemoved;
             ExcavationResult partial = excavate(level, pos, remaining);
 
             if (partial.success()) {
-                if (material == null) material = partial.material();
                 totalRemoved += partial.unitsRemoved();
                 affected.addAll(partial.affectedCells());
             }
         }
 
-        if (material == null) return ExcavationResult.NONE;
+        if (material == null || totalRemoved <= 0) return ExcavationResult.NONE;
         return new ExcavationResult(material, totalRemoved, affected);
     }
 }
