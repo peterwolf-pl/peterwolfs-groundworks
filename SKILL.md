@@ -1,17 +1,18 @@
 ---
 name: minecraft-groundworks
-description: "Volumetric deformable granular terrain engine, heavy machinery integration, vehicle physics, and visual regression testing for Minecraft Java 26.3 Fabric (Peterwolf's Groundworks, Excavator, Bulldozer). Use when working on granular terrain, soil excavation, bucket digging, bulldozer grading, material conservation, smooth terrain meshing, cellular relaxation, piles/berms, or construction vehicles."
+description: "Volumetric deformable granular terrain engine, heavy machinery integration, vehicle physics, and visual regression testing for Minecraft Java 26.3 Fabric (Peterwolf's Groundworks, Loader, Excavator, Bulldozer). Use when working on granular terrain, soil excavation, bucket digging, loader scooping, bulldozer grading, material conservation, smooth terrain meshing, cellular relaxation, piles/berms, or construction vehicles."
 ---
 
 # Minecraft Groundworks (Granular Terrain & Machinery Engine)
 
 ## 1. System Architecture
 
-Peterwolf's Groundworks is a modular volumetric granular terrain and heavy machinery platform for Minecraft Java 26.3 Fabric. It consists of three tightly integrated mods:
+Peterwolf's Groundworks is a modular volumetric granular terrain and heavy machinery platform for Minecraft Java 26.3 Fabric. It consists of four tightly integrated mods:
 
 | Project | Mod ID | Primary Responsibilities |
 |---|---|---|
 | **Peterwolf's Groundworks** | `pw_groundworks` | Volumetric $8\times 8\times 8$ granular cell storage, lazy world conversion, deterministic cellular relaxation, continuous heightfield meshing, texture mapping, and public excavation/deposition API. |
+| **Peterwolf's Groundworks Loader** | `pw_groundworks_loader` | Articulated wheel loader, swept world-space bucket intake, single-material carry buffer, gravity surface dumping, terrain-conforming suspension, and diesel engine sound. |
 | **Peterwolf's Groundworks Excavator** | `pw_groundworks_excavator` | Tracked hydraulic crawler excavator, closed-form forward kinematics, swept tooth cutting, bucket dumping, granular terrain contact constraints, 1x1 autotrenching state machine, and diesel engine sound. |
 | **Peterwolf's Groundworks Bulldozer** | `pw_groundworks_bulldozer` | Heavy crawler bulldozer, differential track steering, 3.0m physical grading moldboard blade, 1536-unit capacity, active rolling surcharge, reversing heap discharge, windrow spillage, and deep diesel engine sound. |
 
@@ -51,12 +52,16 @@ All external mods interact with Groundworks exclusively through `com.piotrek.gro
 // Legacy block-local removal
 ExcavationResult result = GroundworksApi.excavate(level, pos, maxUnits);
 
-// Preferred machine API: world-space brush, allowed to cross block boundaries
-ExcavationResult brush = GroundworksApi.excavateAt(level, hitLocation, maxUnits);
-ExcavationResult sphere = GroundworksApi.excavateSphere(level, hitLocation, radius, maxUnits);
+// Preferred machine API: world-space brush, allowed to cross block boundaries.
+// Single-material machine containers MUST pass the material they can accept.
+ExcavationResult brush = GroundworksApi.excavateAt(
+        level, hitLocation, maxUnits, carriedMaterial);
+ExcavationResult sphere = GroundworksApi.excavateSphere(
+        level, hitLocation, radius, maxUnits, carriedMaterial);
 
 // Grading primitives using absolute world-space Y
-ExcavationResult cut = GroundworksApi.excavateAbove(level, pos, worldCutY, maxUnits);
+ExcavationResult cut = GroundworksApi.excavateAbove(
+        level, pos, worldCutY, maxUnits, carriedMaterial);
 DepositResult fill = GroundworksApi.fillBelow(level, pos, targetWorldY, material, availableUnits);
 
 // Deposit with upward overflow
@@ -70,6 +75,13 @@ double surfaceY = GroundworksApi.getSurfaceWorldY(level, pos, worldX, worldZ);
 // Request natural angle-of-repose settling after machine deposition
 GroundworksApi.markForSimulation(level, pos);
 ```
+
+### Material-Aware Excavation Rule
+- Loader buckets, excavator buckets, bulldozer blade carry buffers, conveyors, hoppers, and future single-material machine containers must use the material-aware excavation overloads.
+- If a container is empty, pass the source material reported by `GroundworksApi.getMaterial(...)`.
+- If a container already carries material, pass that carried material as `requiredMaterial`.
+- Foreign material must remain untouched. Never excavate foreign material and then attempt to repair the world with a compensating deposit.
+- A null or `GranularMaterial.EMPTY` filter is reserved for tools that intentionally allow Groundworks to select the first material touched by the brush.
 
 ### Material Registry (`GranularMaterialRegistry`)
 - `DIRT` (id 1): $\theta_{\text{repose}} = 35^\circ$, cohesion $= 0.5$, density $= 1500\text{ kg/m}^3$.
