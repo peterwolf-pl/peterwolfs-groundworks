@@ -52,7 +52,20 @@ ExcavationResult result = GroundworksApi.excavateSphere(
 
 The spherical brush is evaluated in absolute world coordinates and can modify multiple neighboring Groundworks cells in one call.
 
-`ExcavationResult` remains a single-material result. If the brush intersects several materials, one call removes only the first material reached by distance order. A caller can issue another operation for the remaining material.
+`ExcavationResult` remains a single-material result. If the brush intersects several materials, one unrestricted call removes only the first material reached by distance order.
+
+For buckets, blades, and other single-material containers, prefer the material-aware overload:
+
+```java
+ExcavationResult result = GroundworksApi.excavateAt(
+        level,
+        bucketToothWorldPosition,
+        maxUnits,
+        bucketMaterial
+);
+```
+
+The same material filter is available on `excavateSphere(..., requiredMaterial)` and `excavateAbove(..., requiredMaterial)`. A null or `GranularMaterial.EMPTY` filter keeps the unrestricted first-material-wins behavior. A non-empty filter prevents foreign material from being mutated at all, so machine mods do not need to excavate and then attempt a lossy rollback.
 
 ## Grading
 
@@ -63,7 +76,8 @@ ExcavationResult cut = GroundworksApi.excavateAbove(
         level,
         cellPos,
         bladeWorldY,
-        maxUnits
+        maxUnits,
+        carriedMaterial
 );
 ```
 
