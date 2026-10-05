@@ -149,16 +149,22 @@ public final class GranularCell {
      */
     public int removeFromTop(int maxUnits) {
         if (maxUnits <= 0 || unitCount == 0) return 0;
+
+        int target = Math.min(maxUnits, unitCount);
         int removed = 0;
-        // Scan from top Y layer down
-        for (int y = RESOLUTION - 1; y >= 0 && removed < maxUnits; y--) {
-            for (int z = 0; z < RESOLUTION && removed < maxUnits; z++) {
-                for (int x = 0; x < RESOLUTION && removed < maxUnits; x++) {
-                    if (clear(x, y, z)) {
-                        removed++;
-                    }
-                }
-            }
+        for (int y = RESOLUTION - 1; y >= 0 && removed < target; y--) {
+            long occupied = occupancy[y];
+            long selected = takeLowestBits(occupied, target - removed);
+            if (selected == 0L) continue;
+
+            occupancy[y] = occupied & ~selected;
+            removed += Long.bitCount(selected);
+        }
+
+        if (removed > 0) {
+            unitCount -= removed;
+            invalidateAllColumns();
+            markBulkDirty(DirtyFlags.OCCUPANCY, removed);
         }
         return removed;
     }
@@ -170,17 +176,48 @@ public final class GranularCell {
      */
     public int addFromBottom(int maxUnits) {
         if (maxUnits <= 0 || unitCount >= TOTAL_UNITS) return 0;
+
+        int target = Math.min(maxUnits, TOTAL_UNITS - unitCount);
         int added = 0;
-        for (int y = 0; y < RESOLUTION && added < maxUnits; y++) {
-            for (int z = 0; z < RESOLUTION && added < maxUnits; z++) {
-                for (int x = 0; x < RESOLUTION && added < maxUnits; x++) {
-                    if (set(x, y, z)) {
-                        added++;
-                    }
-                }
-            }
+        for (int y = 0; y < RESOLUTION && added < target; y++) {
+            long occupied = occupancy[y];
+            long selected = takeLowestBits(~occupied, target - added);
+            if (selected == 0L) continue;
+
+            occupancy[y] = occupied | selected;
+            added += Long.bitCount(selected);
+        }
+
+        if (added > 0) {
+            unitCount += added;
+            invalidateAllColumns();
+            markBulkDirty(DirtyFlags.OCCUPANCY, added);
         }
         return added;
+    }
+
+    private static long takeLowestBits(long candidates, int limit) {
+        if (limit <= 0 || candidates == 0L) return 0L;
+        if (Long.bitCount(candidates) <= limit) return candidates;
+
+        int start = Long.numberOfTrailingZeros(candidates);
+        if (limit < Long.SIZE && start <= Long.SIZE - limit) {
+            long consecutive = ((1L << limit) - 1L) << start;
+            if ((candidates & consecutive) == consecutive) return consecutive;
+        }
+
+        long selected = 0L;
+        for (int selectedCount = 0; selectedCount < limit; selectedCount++) {
+            long bit = candidates & -candidates;
+            selected |= bit;
+            candidates ^= bit;
+        }
+        return selected;
+    }
+
+    private void markBulkDirty(int flag, int mutationCount) {
+        dirtyFlags |= flag;
+        revision += mutationCount;
     }
 
     /**
@@ -192,6 +229,18 @@ public final class GranularCell {
             count += Long.bitCount(word);
         }
         return count;
+    }
+
+    /**
+     * Recompute and store the unit count after occupancy words are copied in bulk.
+     * Network and render snapshots must call this after writing {@link #occupancy()}.
+     *
+     * @return the refreshed unit count
+     */
+    public int refreshUnitCount() {
+        unitCount = recount();
+        invalidateAllColumns();
+        return unitCount;
     }
 
     /**

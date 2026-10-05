@@ -3,6 +3,7 @@ package com.piotrek.groundworks.terrain.storage;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.piotrek.groundworks.GroundworksMod;
+import com.piotrek.groundworks.block.entity.GranularBlockEntity;
 import com.piotrek.groundworks.networking.GranularSyncHandler;
 import com.piotrek.groundworks.simulation.GranularRelaxationEngine;
 import com.piotrek.groundworks.terrain.cell.DirtyFlags;
@@ -70,6 +71,11 @@ public class GranularWorldStorage extends SavedData {
     private int unitsMovedLastTick;
     private long simulationTimeNanos;
     private int syncPacketsSent;
+    private long activeSimulationTicks;
+    private long totalSimulationTimeNanos;
+    private long peakSimulationTimeNanos;
+    private long totalCellsProcessed;
+    private long totalUnitsMoved;
 
     private int maxCellsPerTick = 64;
     private long maxSimulationMicros = 1000;
@@ -135,7 +141,12 @@ public class GranularWorldStorage extends SavedData {
         setDirty();
 
         if (level != null && cell.unitCount() > 0) {
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+            level.setBlock(pos, GroundworksMod.GRANULAR_BLOCK.defaultBlockState(), 3);
+            if (level.getBlockEntity(pos) instanceof GranularBlockEntity blockEntity) {
+                blockEntity.setMaterialId(cell.materialId());
+                blockEntity.setCell(cell);
+                blockEntity.setChanged();
+            }
         }
     }
 
@@ -165,6 +176,7 @@ public class GranularWorldStorage extends SavedData {
     // ── Tick processing ──────────────────────────────────────────────
 
     public void tick() {
+        boolean hadQueuedWork = !dirtyQueue.isEmpty();
         cellsProcessedLastTick = 0;
         unitsMovedLastTick = 0;
         syncPacketsSent = 0;
@@ -184,11 +196,14 @@ public class GranularWorldStorage extends SavedData {
 
             BlockPos pos = BlockPos.of(packedPos);
 
-            // Simulation step: run relaxation if flagged
+            // Consume the current simulation request before relaxing. Any transfer
+            // made by the engine marks the source and receivers for another pass.
+            // Clearing after relax used to erase that request and stopped piles
+            // after exactly one transfer.
             if (cell.isDirty(DirtyFlags.SIMULATE)) {
+                cell.clearDirtyFlag(DirtyFlags.SIMULATE);
                 int transferred = GranularRelaxationEngine.relaxCell(this, pos, cell);
                 unitsMovedLastTick += transferred;
-                cell.clearDirtyFlag(DirtyFlags.SIMULATE);
             }
 
             // Sync dirty cells to clients
@@ -200,15 +215,30 @@ public class GranularWorldStorage extends SavedData {
 
             if (cell.isEmpty()) {
                 cells.remove(packedPos);
+                if (level != null && level.getBlockState(pos).is(GroundworksMod.GRANULAR_BLOCK)) {
+                    level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                }
                 continue;
             }
 
-            cell.clearDirtyFlags();
+            // OCCUPANCY/MATERIAL/MESH describe the change already synchronized
+            // above. Preserve only a newly requested simulation pass.
+            cell.clearDirtyFlag(DirtyFlags.OCCUPANCY | DirtyFlags.MATERIAL | DirtyFlags.MESH);
+            if (cell.isDirty(DirtyFlags.SIMULATE)) {
+                enqueueDirty(packedPos);
+            }
             processed++;
         }
 
         simulationTimeNanos = System.nanoTime() - startNanos;
         cellsProcessedLastTick = processed;
+        if (hadQueuedWork) {
+            activeSimulationTicks++;
+            totalSimulationTimeNanos += simulationTimeNanos;
+            peakSimulationTimeNanos = Math.max(peakSimulationTimeNanos, simulationTimeNanos);
+            totalCellsProcessed += processed;
+            totalUnitsMoved += unitsMovedLastTick;
+        }
     }
 
     // ── Queries ──────────────────────────────────────────────────────
@@ -228,6 +258,13 @@ public class GranularWorldStorage extends SavedData {
     public int unitsMovedLastTick() { return unitsMovedLastTick; }
     public long simulationTimeNanos() { return simulationTimeNanos; }
     public int syncPacketsSent() { return syncPacketsSent; }
+    public long activeSimulationTicks() { return activeSimulationTicks; }
+    public long averageSimulationTimeNanos() {
+        return activeSimulationTicks == 0 ? 0 : totalSimulationTimeNanos / activeSimulationTicks;
+    }
+    public long peakSimulationTimeNanos() { return peakSimulationTimeNanos; }
+    public long totalCellsProcessed() { return totalCellsProcessed; }
+    public long totalUnitsMoved() { return totalUnitsMoved; }
 
     public Map<Long, GranularCell> allCells() {
         return Collections.unmodifiableMap(cells);

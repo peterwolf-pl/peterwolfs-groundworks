@@ -37,8 +37,7 @@ public final class ClientGranularStorage {
             if (payload.words().length == GranularCell.LONGS) {
                 System.arraycopy(payload.words(), 0, cell.occupancy(), 0, GranularCell.LONGS);
             }
-            cell.recount();
-            cell.invalidateAllColumns();
+            cell.refreshUnitCount();
             cell.markDirty(DirtyFlags.MESH);
             CELLS.put(key, cell);
         } else {
@@ -52,8 +51,7 @@ public final class ClientGranularStorage {
                     occ[i] = payload.words()[wordIdx++];
                 }
             }
-            cell.recount();
-            cell.invalidateAllColumns();
+            cell.refreshUnitCount();
             cell.markDirty(DirtyFlags.MESH);
         }
 

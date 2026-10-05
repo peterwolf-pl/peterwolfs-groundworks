@@ -63,7 +63,7 @@ public class GranularBlockEntityRenderer implements BlockEntityRenderer<Granular
             cell = new GranularCell();
             cell.setMaterialId(state.materialId);
             System.arraycopy(state.occupancy, 0, cell.occupancy(), 0, GranularCell.LONGS);
-            cell.recount();
+            cell.refreshUnitCount();
         } else {
             cell = ClientGranularStorage.getCell(pos);
         }

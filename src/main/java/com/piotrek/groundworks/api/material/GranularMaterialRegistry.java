@@ -74,6 +74,12 @@ public final class GranularMaterialRegistry {
                 return BY_ID.get(i);
             }
         }
+
+        // Grass is the exposed surface state of ordinary dirt. Excavation and
+        // deposition must not treat its decorative top as another material.
+        if (DIRT != null && state.is(Blocks.GRASS_BLOCK)) {
+            return DIRT;
+        }
         return null;
     }
 

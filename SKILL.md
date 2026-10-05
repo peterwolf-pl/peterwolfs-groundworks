@@ -1,817 +1,298 @@
 ---
-name: peterwolfs-groundworks-source-mix
-description: >
-  Research and implementation skill for Peterwolf's Groundworks / Granular Terrain
-  for Minecraft Java 26.3 Fabric. Use this skill when designing, implementing,
-  reviewing, or optimizing deformable granular terrain, partial block excavation,
-  material-volume conservation, piles/slopes, buckets, wheelbarrows, conveyors,
-  excavators, or smooth terrain meshing. It synthesizes implementation patterns
-  from existing Minecraft mods without blindly copying incompatible or restricted code.
+name: minecraft-groundworks
+description: "Volumetric deformable granular terrain engine, heavy machinery integration, vehicle physics, and visual regression testing for Minecraft Java 26.3 Fabric (Peterwolf's Groundworks, Excavator, Bulldozer). Use when working on granular terrain, soil excavation, bucket digging, bulldozer grading, material conservation, smooth terrain meshing, cellular relaxation, piles/berms, or construction vehicles."
 ---
 
-# Peterwolf's Groundworks - source-mix skill
-
-## Mission
-
-Build an original Fabric 26.3 granular-terrain engine that can convert selected
-vanilla 1x1x1 blocks into deformable material while preserving material volume.
-
-Target behavior:
-
-- A full vanilla block represents exactly 1.000 m3 of material.
-- A converted block can be partially excavated.
-- Excavated material can be stored in a tool or vehicle container as volume.
-- Dumped material returns to the terrain.
-- Loose material relaxes into stable piles.
-- The terrain can be rendered smoother than vanilla cubes.
-- The server owns the authoritative simulation.
-- The implementation must remain performant enough for construction machines.
-
-The intended core is not a collection of falling-block entities. It is a
-server-authoritative volumetric terrain system with custom rendering.
-
-## Critical legal rule
-
-Before copying any code from any external repository:
-
-1. Read the LICENSE file in the exact branch and commit being inspected.
-2. Record the repository, branch, commit SHA, license, and copied/adapted files.
-3. Do not assume the license shown by Modrinth or CurseForge matches the current
-   Git repository.
-4. If a project is All Rights Reserved, has no source license, or the source
-   repository cannot be verified, use it only as behavioral inspiration.
-5. Prefer reimplementation from documented behavior and algorithms rather than
-   source copying.
-6. Never decompile a closed-source JAR to obtain code for Groundworks.
-
-A public repository does not automatically mean its code can be copied.
-
-## Reference projects
-
-### 1. Chisels & Bits
-
-Repository:
-`ChiselsAndBits/Chisels-and-Bits`
-
-Observed active branch during research:
-`version/26.1`
-
-Observed repository license:
-MIT
-
-Important modules and files:
-
-- `api/src/main/java/mod/chiselsandbits/api/block/storage/StateEntryStorage.java`
-- `api/src/main/java/mod/chiselsandbits/api/block/storage/StateEntryPalette.java`
-- `api/src/main/java/mod/chiselsandbits/api/multistate/StateEntrySize.java`
-- multistate accessor and mutator APIs
-- storage/versioning code
-- compressed block-state persistence patterns
-
-What to learn:
-
-- representing many sub-block states inside one vanilla block position
-- palette-based storage
-- compact state indices
-- serialization and versioning
-- mutating a sub-block volume without replacing the whole Minecraft block
-- client/server synchronization of detailed block data
-
-Do not copy the entire Chisels & Bits architecture. Groundworks has a simpler
-problem because a granular cell normally contains one material plus occupancy
-or density, not an arbitrary mixture of hundreds of decorative block states.
-
-Recommended Groundworks adaptation:
-
-- one `GranularMaterialId` per cell for MVP
-- 512 logical units per full block
-- occupancy stored as a 512-bit bitset or packed density field
-- upgrade to palette storage only if mixed materials become a real requirement
-- explicit storage format version from day one
-
-### 2. NoCubes
-
-Repository:
-`Cadiboo/NoCubes`
-
-Observed repository license:
-LGPL-3.0
-
-Most relevant files:
-
-- `common/src/main/java/io/github/cadiboo/nocubes/mesh/Mesher.java`
-- `common/src/main/java/io/github/cadiboo/nocubes/mesh/SDFMesher.java`
-- `common/src/main/java/io/github/cadiboo/nocubes/mesh/SurfaceNets.java`
-- `common/src/main/java/io/github/cadiboo/nocubes/mesh/MarchingCubes.java`
-- NoCubes README technical sections on rendering and collisions
-
-Key lessons:
-
-- intercept or augment terrain rendering rather than creating thousands of entities
-- generate a mesh from a voxel/density field
-- Surface Nets is a strong default for smooth terrain
-- use Marching Cubes as a reference/diagnostic option, not automatically as the default
-- render meshes should be cached and rebuilt only for dirty regions
-- collision geometry can be generated separately from visual geometry
-
-Important warning:
-
-NoCubes documents that recalculating collision meshes repeatedly for overlapping
-areas is wasteful. Groundworks should avoid this by caching collision data per
-dirty granular region.
-
-Recommended Groundworks adaptation:
-
-- physics grid and visual mesh must be separate systems
-- only changed granular regions invalidate mesh caches
-- build mesh CPU data outside the render hot path
-- upload GPU buffers on the correct client render path
-- do not rebuild full vanilla chunks for a single changed microcell if avoidable
-
-### 3. LittleTiles
-
-Repository:
-`CreativeMD/LittleTiles`
-
-Observed branch during research:
-`1.21`
-
-Observed repository license:
-LGPL-3.0
-
-Relevant files:
-
-- `src/main/java/team/creative/littletiles/common/grid/LittleGrid.java`
-- `src/main/java/team/creative/littletiles/common/grid/IGridBased.java`
-- `src/main/java/team/creative/littletiles/common/math/box/LittleBox.java`
-- `src/main/java/team/creative/littletiles/common/math/box/LittleBoxCombiner.java`
-- `src/main/java/team/creative/littletiles/common/math/box/collection/*`
-
-Key lessons:
-
-- integer sub-block grids are robust
-- keep geometry in integer coordinates as long as possible
-- explicitly associate geometry with grid resolution
-- merge adjacent small regions where possible
-- avoid float-heavy storage for authoritative simulation
-
-Recommended Groundworks adaptation:
-
-- resolution constant for MVP: 8 subdivisions per block axis
-- use integer coordinates 0..7 inside a cell
-- convert to float only for rendering
-- use packed integer indexing:
-  `index = x + 8 * (z + 8 * y)` or another fixed documented order
-- never allow client floating-point rendering coordinates to become authoritative material data
-
-### 4. Sand Physics
-
-Repository:
-`multyfora/sandphysis-1.21.1`
-
-Observed repository license:
-MIT
-
-Relevant source tree:
-
-- `src/main/java/net/multyfora/sandphysics/Sandphysis.java`
-- `src/main/java/net/multyfora/sandphysics/Config.java`
-- `src/main/java/net/multyfora/sandphysics/SubLevelAutoDisassemblyManager.java`
-- `src/main/java/net/multyfora/sandphysics/mixin/FallingBlockEntityFallMixin.java`
-
-This project uses Sable's Physics to turn vanilla gravity-related behavior into
-physical objects.
-
-What to learn:
-
-- narrow Mixin hooks around vanilla falling-block behavior
-- lifecycle management for temporary physical objects
-- configuration boundaries
-- separation between Minecraft block state and external physics representation
-
-What not to adopt for Groundworks core:
-
-- one rigid-body object per sand fragment
-- entity-based representation of the entire terrain
-- continuous rigid-body simulation for every granular unit
-
-Use physical entities only for optional visual chunks, debris, or rare large
-pieces. The granular mass itself should stay in the terrain grid.
-
-### 5. Physics Mod
-
-Repository:
-`haubna/PhysicsMod`
-
-CurseForge project license:
-All Rights Reserved
-
-The public repository observed during research contains documentation, shader
-integration notes, and example/API material, not the full production source
-needed to reimplement its physics system.
-
-Current project status observed during research:
-
-- supports Minecraft 26.3
-- Fabric 26.3 build exists
-- also supports Forge and NeoForge
-- exposes useful compatibility information for rendering and physics features
-
-Rule:
-
-- behavior and public API/documentation reference only
-- do not copy proprietary implementation
-- do not treat the GitHub repository as the complete Physics Mod source
-
-What to learn:
-
-- 26.3 proves that advanced custom physics/rendering is viable on the target version
-- optional future integration with external physics libraries is possible
-- keep Groundworks independent from Physics Mod for the core terrain representation
-
-### 6. Falling Sand
-
-Catalog project:
-`Modrinth: falling-sand`
-
-Observed license:
-All Rights Reserved
-
-Observed behavior:
-
-- rewrites falling-block logic
-- blocks remain blocks rather than becoming falling-block entities
-- falling materials can move downward
-- materials can slide diagonally
-- sliding can be probabilistic/configurable
-- can create landslides and cave-ins
-- server-side implementation
-
-No verified public source repository was found during this research pass.
-
-Rule:
-
-- behavior-only inspiration
-- do not copy code
-- reimplement granular relaxation independently
-
-The useful concept for Groundworks is not its full-block representation, but
-the local-update rule: a material element can move into a lower neighboring
-space without becoming an entity.
-
-### 7. Better Dirt Mining - BDM
-
-Catalog project:
-`Better Dirt Mining - BDM`
-
-Creator:
-Janexi
-
-Observed catalog license:
-MIT
-
-Observed version:
-Fabric 1.21.11
-
-Observed behavior:
-
-- dirt, sand, gravel and related materials can be mined layer by layer
-- later release notes describe layered-block gravity
-- unsupported layered blocks can fall
-- breaking under another layered block can remove material from the upper block
-- full layered blocks can swap positions in some conditions
-
-No verified public source repository was found during this research pass.
-
-Rule:
-
-- do not assume catalog MIT metadata is enough to copy code
-- do not decompile the JAR
-- use behavior as design validation until a verifiable source repo with LICENSE is found
-
-What to learn:
-
-- players understand partial-height excavation
-- partial material should participate in gravity
-- the conversion from full block to partial terrain can be incremental
-
-### 8. Block Layering
-
-Catalog project:
-`Block Layering`
-
-Creator:
-Lothrazar
-
-Observed catalog license:
-All Rights Reserved
-
-Observed behavior:
-
-- adds dirt, sand, gravel, clay and other materials as snow-like layers
-- reuses textures from the underlying block/model
-- supports resource packs without shipping custom textures for every material
-
-No verified public source repository was found during this research pass.
-
-Rule:
-
-- behavior-only inspiration
-
-Useful design idea:
-
-- reuse vanilla block textures for generated granular surfaces
-- avoid duplicating the entire vanilla material texture library
-- for MVP, sample the source block texture and map it onto generated terrain faces
-
-## Groundworks architecture
-
-### A. Conversion boundary
-
-Do not convert the entire world.
-
-Keep normal terrain as vanilla blocks until one of these happens:
-
-- shovel removes a partial amount
-- excavator bucket intersects the block
-- bulldozer blade modifies the surface
-- conveyor dumps material onto it
-- another granular cell relaxes into it
-
-Conversion:
-
-`Vanilla BlockState -> GranularCell`
-
-A full converted cell starts with:
-
-- material id
-- volume units = 512
-- occupancy/density = full
-- storage version
-- dirty flags
-
-When a granular cell returns to an exact full stable cube and no extra metadata
-is needed, optionally compact it back to the vanilla block.
-
-### B. Authoritative unit system
-
-MVP resolution:
-
-`8 x 8 x 8 = 512 units per vanilla block`
-
-Definitions:
-
-- 1 vanilla full block = 512 units
-- 1 unit = 1 / 512 block volume
-- logical block volume = 1.000 m3 for gameplay accounting
-
-Do not use `double` as the authoritative material amount.
-
-Use integers:
-
-- terrain cell amount: integer units
-- bucket amount: integer units
-- wheelbarrow amount: integer units
-- conveyor transfer: integer units per simulation step
-
-This guarantees volume conservation.
-
-### C. Storage strategies
-
-Start with one of these:
-
-#### Option 1 - Occupancy bitset
-
-Best MVP choice if each microvoxel is empty/full.
-
-- 512 bits = 64 bytes per converted block before metadata
-- one material id per cell
-- very fast population counts
-- very fast union/subtraction masks
-
-#### Option 2 - Packed density
-
-Use if smoother partial occupancy is needed.
-
-- 4 bits per microvoxel = 256 bytes per block
-- 16 density levels
-- more natural redistribution
-- higher CPU and network cost
-
-Recommendation:
-
-Start with bitset occupancy plus Surface Nets-style visual smoothing.
-Do not begin with per-voxel floating density.
-
-### D. Granular simulation
-
-Each material has a profile:
-
-- density
-- angle of repose
-- cohesion
-- slide probability
-- wetness response later
-- compactability later
-
-MVP examples:
-
-- sand: low cohesion, lower angle
-- gravel: medium angle
-- dirt: higher cohesion
-- clay: high cohesion
-
-Do not simulate every unit individually every tick.
-
-Use dirty-region relaxation:
-
-1. modification marks local cells dirty
-2. dirty queue receives affected cells and neighbors
-3. a fixed tick budget processes them
-4. find unstable gradients
-5. transfer integer units toward lower neighbors
-6. stop when stable or tick budget is exhausted
-7. continue next tick if needed
-
-The exact physical model can evolve. Determinism and volume conservation are
-more important than perfect real-world soil mechanics in Stage 1.
-
-### E. Surface representation
-
-For mostly surface soil, maintain fast summaries:
-
-- top occupied y for each local x,z column
-- total volume
-- occupancy bitset
-
-The bitset remains authoritative. The height summary is a cache.
-
-This allows:
-
-- fast shovel interaction
-- fast collision approximation
-- cheap angle-of-repose tests
-- faster rendering bounds
-
-### F. Tool excavation API
-
-Core interface concept:
-
-`removeVolume(Shape sweptShape, int maxUnits, ExcavationContext ctx)`
-
-Return:
-
-- material id
-- units removed
-- source positions
-- optional composition info
-
-Tool containers expose:
-
-`acceptMaterial(materialId, units)`
-
-Dumping exposes:
-
-`depositMaterial(worldPos, materialId, units, velocityHint)`
-
-The terrain engine, not the excavator mod, owns redistribution and meshing.
-
-### G. Excavator bucket model
-
-Do not test only the bucket's current static AABB.
-
-Use a swept volume:
-
-- previous bucket transform
-- current bucket transform
-- cutting edge
-- bucket interior capacity
-
-Approximate the swept shape using a small number of convex segments or sampled
-poses for MVP.
-
-The bucket owns:
-
-- capacity units
-- contained material id
-- contained units
-
-The terrain owns:
-
-- which microvoxels were removed
-- volume conservation
-
-### H. Rendering
-
-Preferred sequence:
-
-1. gather dirty granular cells
-2. construct a small scalar/occupancy field
-3. run Surface Nets or a custom simplified surface mesher
-4. build mesh CPU buffers
-5. cache mesh by region/version
-6. upload/render on the client
-7. invalidate only overlapping dirty regions
-
-Do not create one block entity renderer per microvoxel.
-
-Texture strategy:
-
-- derive material texture from the source Minecraft BlockState
-- reuse vanilla atlas sprites where practical
-- use triplanar-like or face-projected mapping only if atlas integration permits
-- keep resource-pack compatibility as a design goal
-
-### I. Collision
-
-Rendering mesh and collision mesh do not need equal resolution.
-
-MVP collision options:
-
-- cached 8x8 heightfield per surface cell
-- merged voxel boxes
-- simplified mesh converted to a limited number of VoxelShapes
-
-Prefer a heightfield for ordinary piles.
-
-Use full 3D collision only where an overhang/cavity requires it.
-
-### J. Persistence
-
-Every saved granular payload must contain a format version.
-
-Suggested schema:
-
-- format version
-- material registry id
-- occupancy/density payload
-- optional cached volume checksum
-- optional flags
-
-On load:
-
-- validate volume
-- reject corrupt payload safely
-- never silently erase unknown historical formats
-- keep migration handlers for old versions
-
-### K. Networking
-
-Server authoritative.
-
-Do not send 512 values every change.
-
-Prefer:
-
-- cell version number
-- changed microvoxel runs or bitset XOR
-- changed total units
-- dirty region id
-- occasional full resync for recovery
-
-Batch updates per tick and region.
-
-Client prediction is optional and should never create material.
-
-### L. Threading
-
-Server simulation:
-
-- deterministic world mutation on server-safe scheduling
-- expensive candidate calculations may be parallelized only if world access is copied/snapshotted
-- commit results on the server thread
-
-Client meshing:
-
-- CPU mesh generation may be worker-threaded
-- Minecraft/renderer resource access must follow the active 26.3 rendering API rules
-- GPU buffer upload must use the correct render thread/path
-
-Never mutate live Minecraft world state from arbitrary worker threads.
-
-## Performance budget
-
-Stage 1 target:
-
-- default 8^3 resolution
-- simulation limited to dirty granular areas
-- no global per-tick scan
-- no per-unit entities
-- no block entity for every microvoxel
-- no full chunk remesh after each unit transfer
-- no full-state network packet per micro-update
-
-Add counters:
-
-- active granular cells
-- queued dirty cells
-- units moved this tick
-- simulation time in microseconds
-- mesh rebuild count
-- mesh generation time
-- bytes sent for terrain deltas
-- full resync count
-
-Expose a debug overlay or `/groundworks debug`.
-
-## Stage plan
-
-### Stage 0 - research harness
-
-- create a minimal Fabric 26.3 project
-- confirm mappings and rendering hooks
-- add GameTests
-- add a debug command to inspect cell storage
-- add benchmark counters
-
-### Stage 1 - granular dirt prototype
-
-Materials:
-
-- dirt
-- sand
-- gravel
-
-Features:
-
-- lazy vanilla-to-granular conversion
-- 512-unit conservation model
-- shovel removes a configurable number of units
-- right click or debug tool deposits units
-- save/load
-- basic collision
-- ugly but correct debug rendering is acceptable
-
-Exit criteria:
-
-- no material duplication
-- no material deletion
-- save/load exact
-- multiplayer server remains authoritative
-
-### Stage 2 - relaxation
-
-- angle-of-repose profiles
-- local dirty queue
-- pile formation
-- diagonal transfer
-- boundary transfer between vanilla blocks
-- deterministic simulation tests
-
-### Stage 3 - smooth mesh
-
-- Surface Nets-inspired mesher
-- cached regional meshes
-- source block texture reuse
-- lighting
-- simplified collision cache
-- client/server visual synchronization
-
-### Stage 4 - containers and machines
-
-- wheelbarrow
-- steel wheelbarrow
-- bucket API
-- conveyor transfer API
-- dump points
-- stockpiles
-
-### Stage 5 - excavator
-
-- animated bucket
-- swept cutting volume
-- bucket capacity
-- material pickup
-- dumping
-- machine-terrain collision
-- multiplayer validation
-
-### Stage 6 - optional advanced soil
-
-- compacted material
-- moisture
-- mud
-- mixed materials
-- rock -> fractured rock -> rubble
-- water erosion
-
-Do not implement these before Stage 1-5 are stable.
-
-## Required tests
-
-### Volume conservation
-
-For every operation:
-
-`initial terrain + containers == final terrain + containers`
-
-Use integer unit sums.
-
-Tests:
-
-- remove 1 unit
-- remove 511 units
-- remove full 512 units
-- dump partial bucket
-- dump across cell boundary
-- relaxation across 10+ cells
-- save/reload
-- network delta replay
-
-### Determinism
-
-Run the same initial state and operation sequence twice.
-
-Expected:
-
-- identical cell payloads
-- identical total units
-- identical dirty queue completion result
-
-### Boundary cases
-
-- world/chunk boundary
-- negative coordinates
-- top/bottom build limits
-- unloaded neighboring chunk
-- water adjacency
-- solid non-granular neighbor
-- granular material above air
-- two granular materials meeting
-
-### Performance tests
-
-Benchmark:
-
-- 1 changed block
-- 10x10 pile
-- 32x32 active excavation site
-- conveyor continuously depositing
-- excavator moving through a wall of granular dirt
-
-Record:
-
-- server tick time
-- client mesh time
-- packet volume
-- allocations if profiler is available
-
-## Source-analysis workflow for agents
-
-When asked to research an external project:
-
-1. Identify repository and exact branch.
-2. Pin a commit SHA.
-3. Read LICENSE in that commit.
-4. Classify:
-   - `COPY_ALLOWED_WITH_TERMS`
-   - `READ_AND_REIMPLEMENT`
-   - `BEHAVIOR_ONLY`
-5. Locate only relevant classes.
-6. Write a short architecture note before touching Groundworks.
-7. Reimplement the smallest useful concept.
-8. Add tests proving the concept.
-9. Record attribution and license obligations in `docs/third-party-research.md`.
-10. Never introduce a dependency solely because a reference mod uses it.
-
-## Current source classification
-
-| Project | Source status | Observed license | Groundworks use |
-|---|---|---|---|
-| Chisels & Bits | verified public repo | MIT in observed repo branch | storage ideas; code reuse only after exact LICENSE check |
-| NoCubes | verified public repo | LGPL-3.0 in observed repo | meshing/collision study; comply with LGPL if adapting code |
-| LittleTiles | verified public repo | LGPL-3.0 in observed repo | integer micro-grid and geometry study |
-| Sand Physics | verified public repo | MIT | Mixin/physics integration patterns |
-| Physics Mod | public docs/example repo, production code not verified open | ARR on CurseForge | behavior/API only |
-| Falling Sand | no public source repo verified in research | ARR | behavior only |
-| Better Dirt Mining | no public source repo verified in research | MIT catalog metadata | behavior only until repo LICENSE verified |
-| Block Layering | no public source repo verified in research | ARR | behavior only |
-
-## Design decision summary
-
-Groundworks should be an original engine, not a dependency stack.
-
-Use these ideas:
-
-- Chisels & Bits: compact sub-block storage and versioning
-- LittleTiles: integer grid discipline and box operations
-- NoCubes: smooth mesh generation, caching, custom collision
-- Falling Sand: local diagonal gravity concept
-- Better Dirt Mining: partial excavation UX
-- Block Layering: vanilla texture reuse
-- Sand Physics: narrow physics hooks and lifecycle separation
-- Physics Mod: proof that advanced 26.3 rendering/physics integration is feasible
-
-Do not inherit:
-
-- arbitrary decorative multi-material complexity from Chisels & Bits
-- full LittleTiles feature scope
-- repeated uncached collision meshing
-- thousands of physical entities
-- closed-source or ARR implementation details
-
-The core invariant is:
-
-`material units are integers and are never created or destroyed by terrain operations.`
-
-If a proposed feature makes that invariant difficult to test, redesign the feature.
+# Minecraft Groundworks (Granular Terrain & Machinery Engine)
+
+## 1. System Architecture
+
+Peterwolf's Groundworks is a modular volumetric granular terrain and heavy machinery platform for Minecraft Java 26.3 Fabric. It consists of three tightly integrated mods:
+
+| Project | Mod ID | Primary Responsibilities |
+|---|---|---|
+| **Peterwolf's Groundworks** | `pw_groundworks` | Volumetric $8\times 8\times 8$ granular cell storage, lazy world conversion, deterministic cellular relaxation, continuous heightfield meshing, texture mapping, and public excavation/deposition API. |
+| **Peterwolf's Groundworks Excavator** | `pw_groundworks_excavator` | Tracked hydraulic crawler excavator, closed-form forward kinematics, swept tooth cutting, bucket dumping, granular terrain contact constraints, 1x1 autotrenching state machine, and diesel engine sound. |
+| **Peterwolf's Groundworks Bulldozer** | `pw_groundworks_bulldozer` | Heavy crawler bulldozer, differential track steering, 3.0m physical grading moldboard blade, 1536-unit capacity, active rolling surcharge, reversing heap discharge, windrow spillage, and deep diesel engine sound. |
+
+---
+
+## 2. Core Invariants & Mathematical Standards
+
+1. **Volume Conservation**:
+   Material is strictly conserved across all operations:
+   $$\sum \text{terrain units} + \sum \text{machine containers} = \text{const}$$
+   Material must never be created or destroyed.
+2. **Integer Authority**:
+   Authoritative material volume is strictly measured in integer microvoxels ($0 \dots 512$):
+   $$\text{Full Block} = 8 \times 8 \times 8 = 512\text{ units} = 1.000\text{ m}^3$$
+   $$\text{One Microvoxel} = 1\text{ unit} \approx 0.001953\text{ m}^3$$
+   $$\text{Excavator Standard Bucket} = 256\text{ units} = 0.500\text{ m}^3$$
+   $$\text{Excavator Large Bulk Bucket} = 512\text{ units} = 1.000\text{ m}^3$$
+   $$\text{Bulldozer Blade Capacity} = 1536\text{ units} = 3.000\text{ m}^3\text{ (3 full blocks)}$$
+   Floating-point arithmetic is strictly forbidden for authoritative material accounting.
+3. **Lazy World Conversion**:
+   Vanilla terrain remains ordinary Minecraft blocks until modified by an excavator bucket, bulldozer blade, shovel, or granular flow.
+4. **Microvoxel Indexing**:
+   Bitset layout uses **XZY** order ($y$ is the major axis):
+   $$\text{index} = x + 8 \cdot (z + 8 \cdot y)$$
+   - $x = \text{index} \ \& \ 7$
+   - $z = (\text{index} \gg 3) \ \& \ 7$
+   - $y = (\text{index} \gg 6) \ \& \ 7$
+   - `occupancy[y]` represents a complete $8\times 8$ horizontal slice as a 64-bit `long`.
+
+---
+
+## 3. Public Groundworks API (`GroundworksApi`)
+
+All external mods interact with Groundworks exclusively through `com.piotrek.groundworks.api.GroundworksApi`:
+
+```java
+// Remove up to maxUnits from a single block position
+ExcavationResult result = GroundworksApi.excavate(level, pos, maxUnits);
+
+// Spherical brush removal centered at exact world hit coordinates
+ExcavationResult brush = ExcavationApi.excavateAt(level, pos, hitLocation, maxUnits);
+
+// Deposit material with upward overflow
+DepositResult deposit = GroundworksApi.depositWithOverflow(level, pos, material, units);
+
+// Query cell or surface height (0..7, or -1 if empty)
+GranularCell cell = GroundworksApi.queryCell(level, pos);
+int surfaceMicroY = GroundworksApi.getSurfaceHeight(level, pos, localX, localZ);
+```
+
+### Material Registry (`GranularMaterialRegistry`)
+- `DIRT` (id 1): $\theta_{\text{repose}} = 35^\circ$, cohesion $= 0.5$, density $= 1500\text{ kg/m}^3$.
+  **Note**: `minecraft:grass_block` is the surface state of soil and converts directly to `DIRT`.
+- `SAND` (id 2): $\theta_{\text{repose}} = 30^\circ$, cohesion $= 0.1$, density $= 1600\text{ kg/m}^3$.
+- `GRAVEL` (id 3): $\theta_{\text{repose}} = 38^\circ$, cohesion $= 0.2$, density $= 1800\text{ kg/m}^3$.
+
+---
+
+## 4. Continuous Heightfield Rendering (`GranularSurfaceMesher`)
+
+To hide the discrete 8x8x8 voxel steps while avoiding heavy isosurface density meshes:
+- The visual mesh is an **interpolated heightfield fast-path** extracted from the 8x8 microvoxel column heights.
+- Shared 8x8 grid corners average the top heights of the four surrounding world-space columns across block boundaries using floor division.
+- Smooth per-vertex normals are computed from horizontal gradient differences:
+  $$\vec{n} = \text{normalize}(h_{\text{left}} - h_{\text{right}}, \ 2 \cdot \text{step}, \ h_{\text{north}} - h_{\text{south}})$$
+- Exposed vertical edges receive side skirts down to the cell base.
+- Hidden undersides and faces occluded by an occupied cell directly above are culled.
+- Textures are mapped using vanilla cutout block sprites (`textures/block/dirt.png`, `sand.png`, `gravel.png`), supporting resource packs seamlessly.
+- Mesh caching (`GranularMeshCache`) uses **event-driven invalidation**: client network sync invalidates the changed cell, its 3x3 same-level neighborhood, and the cell below.
+
+---
+
+## 5. Cellular Relaxation Engine (`GranularRelaxationEngine`)
+
+Authoritative physical settling operates on local dirty cells without scanning the entire world:
+1. **Vertical Fall**: Unsupported material searches down up to 32 blocks to find a receiving surface and transfers in bounded steps (max 32 units/tick).
+2. **Top-Surface Ownership**: Buried cells act as structural base; only the topmost cell in an active vertical column flows.
+3. **8-Neighbor Lateral Slope Flow**: Evaluates N, NE, E, SE, S, SW, W, NW columns.
+   - Cardinal threshold: $\tan(\theta) \cdot 8 + \text{cohesion} \cdot 2$
+   - Diagonal threshold: cardinal $\times \sqrt{2}$
+   - Direction tie-breaking is deterministic: hash of `worldSeed ^ packedPos ^ revision`.
+4. **Conservation Enforcement**: Transfers strictly check `removed == added` before returning.
+
+---
+
+## 6. Universal Machinery & Vehicle Physics Standards
+
+When designing any heavy construction vehicle or machine entity for Minecraft 26.3 Fabric, the following patterns are mandatory:
+
+### A. Crosshair Raycasting & Targetability (`isPickable`)
+In vanilla Minecraft (`Entity.java`), `isPickable()` returns `false` by default. **If not overridden, player crosshairs pass through the entity like a ghost**, hitting the ground block behind it. Both mounting (`interact`) and attacking/breaking (`hurtServer`) fail completely. Always override:
+```java
+@Override
+public boolean isPickable() {
+    return !this.isRemoved();
+}
+
+@Override
+public boolean isAttackable() {
+    return true;
+}
+
+@Override
+public boolean canBeCollidedWith(@Nullable Entity other) {
+    return other != null && !this.hasPassenger(other);
+}
+
+@Override
+public boolean hurtClient(DamageSource source) {
+    return true; // Allows client attack animation & sends attack packet to server
+}
+```
+
+### B. Strict Server Authority over Ridden Vehicles
+In Minecraft 26.3, when a player rides any entity, `Entity.isClientAuthoritative()` returns `true` by default because the passenger is a player.
+- **The Bug**: The server stops simulating vehicle physics and waits for client movement packets. The client sends `ServerboundMoveVehiclePacket` containing the old, unmoved position. The server continuously resets the vehicle to the old position, freezing the machine in place while only `SynchedEntityData` (arms, blades) animates!
+- **The Fix**: Explicitly override both authority methods on the entity:
+```java
+@Override
+public boolean isClientAuthoritative() {
+    return false; // Server owns position & movement
+}
+
+@Override
+protected boolean isLocalClientAuthoritative() {
+    return false; // Client will NOT send conflicting ServerboundMoveVehiclePacket
+}
+```
+During motion ticks, force server-to-client position and velocity synchronization:
+```java
+if (hasDriver || Math.abs(trackSpeed) > 0.001F || Math.abs(yawDelta) > 0.01F) {
+    this.syncPosition = true;
+    this.needsSync = true;
+    this.syncVelocity = true;
+}
+```
+
+### C. Obstacle Clearance & Passenger Collision
+- **Step Height (`maxUpStep`)**: Default is `0.0F`. Any 1-pixel height difference, micro-slab, or granular layer completely blocks horizontal movement. For crawler tracks, set:
+  ```java
+  @Override public float maxUpStep() { return 1.25F; }
+  ```
+- **Self-Collision**: Disable entity collision with riders:
+  ```java
+  @Override public boolean canCollideWith(Entity other) { return false; }
+  ```
+
+### D. Multi-Layer WASD Input Fallback
+Do not rely exclusively on custom network packets. Network packets can suffer jitter, causing driver input decay timers to zero out and instantly brake the vehicle. Implement a two-layer strategy:
+1. **Client**: Read physical GLFW keys (`InputConstants.isKeyDown(KEY_W)`), `KeyMapping.isDown()`, and `player.input.keyPresses`. Send packet with keepalive countdown $\le 3$ ticks.
+2. **Server**: In `entity.tick()`, directly fallback to `player.getLastClientInput()` (`forward()`, `backward()`, `left()`, `right()`) whenever driver is seated.
+
+### E. Standard 3-Way Vehicle Removal UX
+1. **Survival Punch (LPM)**: Drops machine item and plays metallic clonk (`SoundEvents.ANVIL_HIT`).
+2. **Creative Punch (LPM)**: Instantly deletes the machine.
+3. **Shift + Right-Click with empty hand**: Instantly retrieves the machine directly into the player's inventory (`SoundEvents.ITEM_PICKUP`).
+4. **Commands (`/kill`)**: Safely ejects passengers and discards entity.
+
+---
+
+## 7. Excavator Engineering (`pw_groundworks_excavator`)
+
+### A. Machine Ground Push-Up Physics (Podnoszenie koparki na łyżce)
+Real hydraulic excavators use boom down-pressure and bucket curling against solid ground/rock to jack the undercarriage upward:
+- Compute penetration depth of cutting edge into ground: `depth = groundHeight - teeth.y`.
+- If `depth > 0.05 m`:
+  - Vertical lift: `liftY = min(1.6 m, depth * 1.25) * 0.35` applied directly to entity movement.
+  - Chassis pitch reaction: `pitch = clamp(pitch + cos(cabYaw) * (lift * 18.0), -35°, 40°)`.
+  - Tilts the front tracks up when the arm is facing forward ($+35^\circ$), or rear tracks up when facing rearward.
+  - Allows climbing trench ledges and self-recovery.
+
+### B. 1:1 Kinematic Matrix Synchronization (0mm Error)
+- Never mix separate trigonometric kinematics with rendering transformations.
+- `ArmKinematics` builds `computeBucketMatrix(...)` using the exact `Matrix4f` transformations as `ExcavatorRenderer`:
+  $$\text{Mat} = \text{Translate}(\text{BasePos}) \times \text{RotY}(-\text{Yaw}) \times \text{Scale}(-1, -1, 1) \times \text{Translate}(0, -1.5, 0) \times \text{Turntable} \times \text{Boom} \times \text{Stick} \times \text{Bucket}$$
+- Teeth coordinates, cutting edge, and lip position calculated from matrix transformations match visual polygons with $< 0.001\text{ mm}$ error.
+
+### C. Multi-Bucket Interchangeability (Key `Z`)
+- `BUCKET_STANDARD` (256u = $0.500\text{ m}^3$): 5 chisel teeth, 0.75m width, 32 units/tick intake for trenching.
+- `BUCKET_LARGE` (512u = $1.000\text{ m}^3$): 7 heavy teeth, 1.25m width, 128 units/tick intake, multi-layer ground penetration (`targetPos.below()`) for bulk mass earthmoving.
+
+### D. Excavator Controls & Two-Handed ISO Layout
+- Dual joysticks: Left Joystick (Swing + Stick), Right Joystick (Boom + Bucket).
+- **Mode Toggle (`Key X`)**:
+  - **Drive Mode**: `WASD` drives and differential-steers tracks. Arrow keys control boom and bucket.
+  - **Arm Mode**: Tracks locked. `WASD` controls cab swing (`A`/`D`) and dipper stick (`W`/`S`). Arrow keys control boom (`↑`/`↓`) and bucket (`←`/`→`).
+- **Bucket Ergonomics**:
+  - `Left Arrow` / `T`: Curl inward towards cab (holds and scoops material).
+  - `Right Arrow` / `G`: Curl outward away from cab (fully opens to $145^\circ$ for complete gravity dump).
+
+### E. Automated Trenching (`/excavator autotrench`)
+- State machine cycle: `POSITION_FOR_CUT` $\to$ `PENETRATE_FOR_CUT` ($-0.65\text{ m}$) $\to$ `CUT_AND_CURL` ($-1.0\text{ m}$) $\to$ `SCOOP_AND_CURL` $\to$ `RELIEVE_STALL` $\to$ `LIFT_AND_SWING_RIGHT` ($52^\circ, 90^\circ\text{ yaw}$) $\to$ `DUMP_RIGHT` ($60^\circ$) $\to$ `RESET_AND_REVERSE` (1.0m crawl).
+
+---
+
+## 8. Bulldozer Engineering (`pw_groundworks_bulldozer`)
+
+### A. Heavy Blade Capacity & Intake Throughput
+- **Capacity**: `MAX_BLADE_CAPACITY = 1536` units ($3.000\text{ m}^3$ = 3 full blocks of granular material).
+- **Intake Throughput**: Up to 128 units/tick per contact point across 9 cutting edge sample points. Slices through deep soil banks without slowing down.
+- **Engine Load Reaction**: When carried surcharge exceeds 50% capacity ($> 768$ units), track speed reduces to 75%, reflecting realistic diesel engine torque under heavy push.
+
+### B. World-Space Blade Kinematics (`BladeTransform`)
+- Coordinate system orientation:
+  - Base forward: $\vec{f}_{\text{base}} = (-\sin(\text{yaw}), 0, \cos(\text{yaw}))$
+  - Base right: $\vec{r}_{\text{base}} = (\cos(\text{yaw}), 0, \sin(\text{yaw}))$
+  - Up vector: $\vec{u} = \text{normalize}(\vec{f} \times \vec{r})$
+  - Rotated forward vector: $\vec{f} = \text{normalize}(\vec{r} \times \vec{u}_{\text{blade}})$
+  *(Never use $\vec{u} \times \vec{r}$, which inverts the forward pushing direction!)*
+- Cutting edge center: $\vec{p}_{\text{edge}} = \vec{p}_{\text{vehicle}} + \vec{f} \cdot \text{armLength} + \vec{u} \cdot \text{bladeHeight}$.
+- Bounding box encompasses 9 cutting edge points, top moldboard points, and depth envelope.
+
+### C. Model Space Inversion Rule
+In Minecraft's entity model system (`EntityModel`), the Y axis is inverted (positive $+Y$ points downwards towards the ground, negative $-Y$ points upwards).
+- **Correct Push Arm Pitch**: $\theta = \text{bladeHeight} \cdot 0.45\text{ rad}$.
+- Positive `bladeHeight` ($+0.80\text{ m}$) rotates arms upward away from ground.
+- Negative `bladeHeight` ($-0.60\text{ m}$) rotates arms downward into the dirt.
+- A negative sign in `setupAnim` inverts the visual blade relative to the physical cutting edge.
+
+### D. Active Reversing Heap Formation (Hałda przy cofaniu)
+When pushing forward, material accumulates in front of the moldboard. When the operator shifts to reverse (**`S`** / $\vec{v} \cdot \vec{f} < -0.05$):
+- The moldboard retreats and **deposits 100% of the carried load onto the ground as a 3-meter-wide heap**.
+- Distributed across 5 columns spanning the full width of the blade:
+  - Center: ~32% of units (mound apex)
+  - Mid-Left / Mid-Right: ~24% of units each (mound shoulders)
+  - Outer-Left / Outer-Right: ~10% of units each (mound edges)
+- Every position is marked `SIMULATE` so Groundworks' `GranularRelaxationEngine` naturally settles the pile into its angle of repose.
+- Full capacity gauge in HUD drops from 100% to 0%, accompanied by `DIRT_PLACE` / `SAND_PLACE` / `GRAVEL_PLACE` settling audio.
+- Strictly conserves volume: $\Delta \text{WorldUnits} + \Delta \text{CarriedUnits} = 0$.
+
+### E. Terrain Leveling & Depression Filling
+- **Grading Peaks**: Microvoxels above the blade cutting line are shaved off and added to carried units.
+- **Filling Ruts**: Carried material fills depressions **behind** the blade cutting edge ($\vec{p}_{\text{edge}} - \vec{f} \cdot 0.65\text{ m}$) flush with the grade, leaving a flat, graded floor behind the bulldozer.
+- **Lateral Spill (Windrows)**: When the blade reaches capacity ($1536$ units), excess material spills around the left and right wings (48 units/side), leaving characteristic side windrows.
+
+### F. Differential Track Steering Physics
+- **In-Place Pivot**: Throttle neutral ($W/S = 0$), Steer active ($A/D$):
+  - Steer Right ($D$): Left track drives forward ($+0.85 \cdot V_{\text{max}}$), Right track reverses ($-0.85 \cdot V_{\text{max}}$) $\to$ clockwise pivot.
+  - Steer Left ($A$): Left track reverses ($-0.85 \cdot V_{\text{max}}$), Right track drives forward ($+0.85 \cdot V_{\text{max}}$) $\to$ counterclockwise pivot.
+- **Curvature Driving**: Under throttle, outer track runs faster than inner track ($1.0$ vs $0.35$ speed).
+
+---
+
+## 9. Positional Diesel Audio (`EngineSoundProfile`)
+
+Both construction vehicles implement custom client-side positional looping engine audio:
+- Excavator: 12 Hz diesel pulse rate (`engine_loop.ogg`).
+- Bulldozer: 10 Hz deep industrial diesel rumble (`engine_loop.ogg`).
+- Sound instances derive from `AbstractTickableSoundInstance`, loop while operating, track vehicle coordinates in 3D, and dynamically scale volume and pitch with crawler track speed:
+  $$\text{Volume} = \text{lerp}(\text{speedRatio}, \ V_{\text{idle}}, \ V_{\text{load}})$$
+  $$\text{Pitch} = \text{lerp}(\text{speedRatio}, \ P_{\text{idle}}, \ P_{\text{load}})$$
+- Attenuation is linear up to 48 blocks.
+- Scraping sounds (`ROOTED_DIRT_BREAK`, `SAND_BREAK`, `GRAVEL_BREAK`) trigger periodically during active terrain excavation.
+
+---
+
+## 10. Texture Atlas Architecture (512x512 Non-Overlapping UV)
+
+- Master entity textures must be formatted at **$512 \times 512$** using 2D non-overlapping bin packing:
+  - Row 1 ($v=0..70$): Tracks, deck plate, chassis frame.
+  - Row 2 ($v=74..118$): Machinery house, engine hood, radiators, louvers.
+  - Row 3 ($v=122..148$): Cab roof, glass frames, counterweight with hazard stripes, push arms, rollers.
+  - Row 4 ($v=152..230$): Blade moldboard, cutting lip, side wings, hydraulic cylinders.
+  - Row 5 ($v=234..290$): Dynamic granular material surcharge layer, operator seat, controls.
+- Every cube box in `ModelPart` must reference its unique UV offset to guarantee crisp, undistorted visuals.
+
+---
+
+## 11. Verification & Testing Workflow
+
+Always verify all modifications through the automated pipelines:
+
+```bash
+# 1. Full compilation and unit tests (all 15 tests)
+./gradlew test
+
+# 2. Automated graphical client visual regression tests
+./gradlew runClientGameTest
+
+# 3. Complete build verification
+./gradlew build
+```
+
+- Invariant assertions verify volume conservation across multi-tick grading passes, chunk-boundary pushing, reversing heap formation, and differential track kinematics.

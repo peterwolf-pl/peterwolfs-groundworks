@@ -3,9 +3,16 @@ package com.piotrek.groundworks.client.render;
 import com.piotrek.groundworks.api.material.GranularMaterialRegistry;
 import com.piotrek.groundworks.client.render.GranularSurfaceMesher.CellMesh;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
+import com.piotrek.groundworks.terrain.storage.ClientGranularStorage;
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,27 +34,102 @@ class GranularSurfaceMesherTest {
     }
 
     @Test
-    @DisplayName("Single microvoxel produces exactly 6 boundary quads (one per face)")
+    @DisplayName("Single occupied column produces one surface and four edge skirts")
     void testSingleMicrovoxelMesh() {
         GranularCell cell = GranularCell.empty();
         cell.setMaterialId(GranularMaterialRegistry.DIRT.id());
-        cell.set(3, 3, 3); // isolated center microvoxel
+        cell.set(3, 3, 3);
 
         CellMesh mesh = GranularSurfaceMesher.generateMesh(cell);
 
         assertFalse(mesh.isEmpty());
-        assertEquals(6, mesh.quads().size(), "An isolated voxel must have exactly 6 exposed faces");
+        assertEquals(5, mesh.quads().size(),
+                "Heightfield fast path omits the hidden underside");
     }
 
     @Test
-    @DisplayName("Full cell produces exactly 384 boundary quads (64 per outer face, 0 internal quads)")
+    @DisplayName("Full cell emits smooth top grid and only perimeter skirts")
     void testFullCellMeshBoundaryOnly() {
         GranularCell cell = GranularCell.full(GranularMaterialRegistry.DIRT);
         CellMesh mesh = GranularSurfaceMesher.generateMesh(cell);
 
-        // A full 8x8x8 cube has 6 outer faces, each containing 8x8 = 64 boundary voxels.
-        // Total external quads = 6 * 64 = 384. All internal faces are culled.
-        assertEquals(384, mesh.quads().size(), "Full cell should cull internal faces and emit 384 quads");
+        // 64 top quads + 32 perimeter skirts. The old voxel-box mesher emitted
+        // 384 quads, so this also guards the intended 75% geometry reduction.
+        assertEquals(96, mesh.quads().size());
+    }
+
+    @Test
+    @DisplayName("Neighboring cells calculate identical shared-border heights")
+    void testSharedBorderContinuity() {
+        BlockPos leftPos = BlockPos.ZERO;
+        BlockPos rightPos = leftPos.east();
+        GranularCell left = GranularCell.full(GranularMaterialRegistry.DIRT);
+        GranularCell right = GranularCell.empty();
+        right.setMaterialId(GranularMaterialRegistry.DIRT.id());
+        right.addFromBottom(256);
+
+        Map<BlockPos, GranularCell> cells = new HashMap<>();
+        cells.put(leftPos, left);
+        cells.put(rightPos, right);
+
+        CellMesh leftMesh = GranularSurfaceMesher.generateMesh(leftPos, left, cells::get);
+        CellMesh rightMesh = GranularSurfaceMesher.generateMesh(rightPos, right, cells::get);
+
+        Set<Integer> leftHeights = boundaryHeights(leftMesh, 1.0f);
+        Set<Integer> rightHeights = boundaryHeights(rightMesh, 0.0f);
+        assertEquals(leftHeights, rightHeights,
+                "Both sides of a cell border must use bit-identical height samples");
+    }
+
+    private static Set<Integer> boundaryHeights(CellMesh mesh, float x) {
+        Set<Integer> heights = new TreeSet<>();
+        mesh.quads().forEach(quad -> {
+            if (quad.n0().y > 0.0f && Math.abs(quad.v0().x - x) < 0.0001f) {
+                heights.add(Float.floatToIntBits(quad.v0().y));
+            }
+            if (quad.n1().y > 0.0f && Math.abs(quad.v1().x - x) < 0.0001f) {
+                heights.add(Float.floatToIntBits(quad.v1().y));
+            }
+            if (quad.n2().y > 0.0f && Math.abs(quad.v2().x - x) < 0.0001f) {
+                heights.add(Float.floatToIntBits(quad.v2().y));
+            }
+            if (quad.n3().y > 0.0f && Math.abs(quad.v3().x - x) < 0.0001f) {
+                heights.add(Float.floatToIntBits(quad.v3().y));
+            }
+        });
+        return heights;
+    }
+
+    @Test
+    @DisplayName("A changed cell invalidates only meshes that sample its neighborhood")
+    void testEventDrivenNeighborhoodInvalidation() {
+        GranularMeshCache.clear();
+        ClientGranularStorage.clear();
+
+        BlockPos changed = new BlockPos(10, 70, 10);
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                BlockPos pos = changed.offset(dx, 0, dz);
+                GranularCell cell = GranularCell.full(GranularMaterialRegistry.DIRT);
+                ClientGranularStorage.putCell(pos, cell);
+                GranularMeshCache.getOrBuild(pos.asLong(), cell);
+            }
+        }
+
+        BlockPos below = changed.below();
+        GranularCell belowCell = GranularCell.full(GranularMaterialRegistry.DIRT);
+        ClientGranularStorage.putCell(below, belowCell);
+        GranularMeshCache.getOrBuild(below.asLong(), belowCell);
+
+        BlockPos far = changed.offset(3, 0, 0);
+        GranularCell farCell = GranularCell.full(GranularMaterialRegistry.DIRT);
+        ClientGranularStorage.putCell(far, farCell);
+        GranularMeshCache.getOrBuild(far.asLong(), farCell);
+
+        assertEquals(11, GranularMeshCache.cachedMeshCount());
+        GranularMeshCache.invalidateNeighborhood(changed);
+        assertEquals(1, GranularMeshCache.cachedMeshCount());
+        assertTrue(GranularMeshCache.isCached(far.asLong()));
     }
 
     @Test

@@ -91,7 +91,15 @@ public final class GroundworksCommand {
                 String.format("Last tick processed: %d cells, %d units moved",
                         storage.cellsProcessedLastTick(), storage.unitsMovedLastTick())), false);
         ctx.getSource().sendSuccess(() -> Component.literal(
-                String.format("Simulation time: %d µs", micros)), false);
+                String.format("Simulation time: %d µs (active avg: %d µs, peak: %d µs)",
+                        micros,
+                        storage.averageSimulationTimeNanos() / 1_000,
+                        storage.peakSimulationTimeNanos() / 1_000)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal(
+                String.format("Cumulative: %d active ticks, %d cells, %d units moved",
+                        storage.activeSimulationTicks(),
+                        storage.totalCellsProcessed(),
+                        storage.totalUnitsMoved())), false);
         ctx.getSource().sendSuccess(() -> Component.literal(
                 String.format("Sync packets sent: %d", storage.syncPacketsSent())), false);
 

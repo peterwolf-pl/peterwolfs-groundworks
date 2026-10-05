@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "pw_groundworks_test",
+  "version": "1.0.0",
+  "name": "Peterwolf's Groundworks Client GameTests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "com.piotrek.groundworks.gametest.GroundworksVisualGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "fabric-api": "*",
+    "pw_groundworks": "*"
+  }
+}

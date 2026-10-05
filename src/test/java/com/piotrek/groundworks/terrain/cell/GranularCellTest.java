@@ -115,6 +115,50 @@ class GranularCellTest {
     }
 
     @Test
+    @DisplayName("Bulk add and remove preserve per-unit revision semantics")
+    void testBulkOperationsPreserveRevisionSemantics() {
+        GranularCell cell = GranularCell.empty();
+        cell.setMaterialId(GranularMaterialRegistry.DIRT.id());
+
+        int beforeAdd = cell.revision();
+        assertEquals(32, cell.addFromBottom(32));
+        assertEquals(beforeAdd + 32, cell.revision());
+
+        int beforeRemove = cell.revision();
+        assertEquals(17, cell.removeFromTop(17));
+        assertEquals(beforeRemove + 17, cell.revision());
+        assertEquals(15, cell.unitCount());
+        assertTrue(cell.validate());
+    }
+
+    @Test
+    @DisplayName("Bulk operations preserve bottom-fill and top-removal ordering")
+    void testBulkOperationsPreserveOccupancyOrdering() {
+        GranularCell cell = GranularCell.empty();
+
+        assertEquals(65, cell.addFromBottom(65));
+        assertEquals(-1L, cell.occupancy()[0]);
+        assertEquals(1L, cell.occupancy()[1]);
+
+        assertEquals(1, cell.removeFromTop(1));
+        assertEquals(0L, cell.occupancy()[1]);
+        assertEquals(-1L, cell.occupancy()[0]);
+    }
+
+    @Test
+    @DisplayName("Refreshing a copied occupancy bitset restores the unit-count invariant")
+    void testRefreshUnitCountAfterOccupancyCopy() {
+        GranularCell cell = GranularCell.empty();
+        cell.occupancy()[0] = 0b10101L;
+        cell.occupancy()[7] = Long.MIN_VALUE;
+
+        assertFalse(cell.validate(), "Directly copied network data must initially expose the stale count");
+        assertEquals(4, cell.refreshUnitCount());
+        assertEquals(4, cell.unitCount());
+        assertTrue(cell.validate());
+    }
+
+    @Test
     @DisplayName("Strict volume conservation: excavated units plus remaining units equal 512")
     void testVolumeConservationLaw() {
         GranularCell cell = GranularCell.full(GranularMaterialRegistry.GRAVEL);

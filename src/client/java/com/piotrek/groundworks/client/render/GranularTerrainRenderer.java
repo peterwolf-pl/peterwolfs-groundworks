@@ -4,21 +4,29 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.piotrek.groundworks.client.render.GranularSurfaceMesher.CellMesh;
 import com.piotrek.groundworks.client.render.GranularSurfaceMesher.Quad;
-import com.piotrek.groundworks.terrain.storage.ClientGranularStorage;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
+import com.piotrek.groundworks.terrain.storage.ClientGranularStorage;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import java.util.Map;
 
-/**
- * Stage 3 Client Renderer: Renders deformable granular terrain meshes in the world.
- */
+/** Renders cached, textured granular heightfield meshes in world space. */
 public final class GranularTerrainRenderer {
+
+    private static final Identifier DIRT_TEXTURE =
+            Identifier.withDefaultNamespace("textures/block/dirt.png");
+    private static final Identifier SAND_TEXTURE =
+            Identifier.withDefaultNamespace("textures/block/sand.png");
+    private static final Identifier GRAVEL_TEXTURE =
+            Identifier.withDefaultNamespace("textures/block/gravel.png");
 
     private GranularTerrainRenderer() {}
 
@@ -29,60 +37,90 @@ public final class GranularTerrainRenderer {
         Map<Long, GranularCell> cells = ClientGranularStorage.allCells();
         if (cells.isEmpty()) return;
 
-        Vec3 camPos = context.levelState().cameraRenderState.pos;
-        if (camPos == null) return;
+        Vec3 camera = context.levelState().cameraRenderState.pos;
+        if (camera == null) return;
 
+        submitMaterial(context, cells, camera, 1, DIRT_TEXTURE);
+        submitMaterial(context, cells, camera, 2, SAND_TEXTURE);
+        submitMaterial(context, cells, camera, 3, GRAVEL_TEXTURE);
+    }
+
+    private static void submitMaterial(
+            LevelRenderContext context,
+            Map<Long, GranularCell> cells,
+            Vec3 camera,
+            int materialId,
+            Identifier texture
+    ) {
         PoseStack poseStack = context.poseStack();
+        Minecraft client = Minecraft.getInstance();
 
         context.submitNodeCollector().submitCustomGeometry(
                 poseStack,
-                RenderTypes.debugQuads(),
+                RenderTypes.entityCutout(texture),
                 (pose, consumer) -> {
                     for (var entry : cells.entrySet()) {
-                        long packedPos = entry.getKey();
                         GranularCell cell = entry.getValue();
-                        if (cell.isEmpty()) continue;
+                        if (cell.isEmpty() || cell.materialId() != materialId) continue;
 
+                        long packedPos = entry.getKey();
                         BlockPos pos = BlockPos.of(packedPos);
-
-                        double dx = pos.getX() + 0.5 - camPos.x;
-                        double dy = pos.getY() + 0.5 - camPos.y;
-                        double dz = pos.getZ() + 0.5 - camPos.z;
-                        if (dx * dx + dy * dy + dz * dz > 64 * 64) continue;
+                        double dx = pos.getX() + 0.5 - camera.x;
+                        double dy = pos.getY() + 0.5 - camera.y;
+                        double dz = pos.getZ() + 0.5 - camera.z;
+                        if (dx * dx + dy * dy + dz * dz > 64.0 * 64.0) continue;
 
                         CellMesh mesh = GranularMeshCache.getOrBuild(packedPos, cell);
                         if (mesh.isEmpty()) continue;
 
-                        float relX = (float) (pos.getX() - camPos.x);
-                        float relY = (float) (pos.getY() - camPos.y);
-                        float relZ = (float) (pos.getZ() - camPos.z);
+                        float relX = (float) (pos.getX() - camera.x);
+                        float relY = (float) (pos.getY() - camera.y);
+                        float relZ = (float) (pos.getZ() - camera.z);
 
-                        int r, g, b;
-                        int matId = cell.materialId();
-                        if (matId == 1) {
-                            r = 134; g = 96; b = 67;
-                        } else if (matId == 2) {
-                            r = 219; g = 207; b = 163;
-                        } else if (matId == 3) {
-                            r = 136; g = 134; b = 136;
-                        } else {
-                            r = 180; g = 180; b = 180;
-                        }
-
-                        int alpha = 255;
+                        int blockLight = client.level.getBrightness(LightLayer.BLOCK, pos.above());
+                        int skyLight = client.level.getBrightness(LightLayer.SKY, pos.above());
+                        int packedLight = (skyLight << 20) | (blockLight << 4);
 
                         for (Quad quad : mesh.quads()) {
-                            consumer.addVertex(pose, relX + quad.v0().x, relY + quad.v0().y, relZ + quad.v0().z)
-                                    .setColor(r, g, b, alpha);
-                            consumer.addVertex(pose, relX + quad.v1().x, relY + quad.v1().y, relZ + quad.v1().z)
-                                    .setColor(r, g, b, alpha);
-                            consumer.addVertex(pose, relX + quad.v2().x, relY + quad.v2().y, relZ + quad.v2().z)
-                                    .setColor(r, g, b, alpha);
-                            consumer.addVertex(pose, relX + quad.v3().x, relY + quad.v3().y, relZ + quad.v3().z)
-                                    .setColor(r, g, b, alpha);
+                            emitVertex(consumer, pose, quad.v0(), quad.n0(), relX, relY, relZ, packedLight);
+                            emitVertex(consumer, pose, quad.v1(), quad.n1(), relX, relY, relZ, packedLight);
+                            emitVertex(consumer, pose, quad.v2(), quad.n2(), relX, relY, relZ, packedLight);
+                            emitVertex(consumer, pose, quad.v3(), quad.n3(), relX, relY, relZ, packedLight);
                         }
                     }
                 }
         );
+    }
+
+    private static void emitVertex(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            Vector3f vertex,
+            Vector3f normal,
+            float relX,
+            float relY,
+            float relZ,
+            int packedLight
+    ) {
+        float u;
+        float v;
+        if (Math.abs(normal.y) >= Math.abs(normal.x)
+                && Math.abs(normal.y) >= Math.abs(normal.z)) {
+            u = vertex.x;
+            v = vertex.z;
+        } else if (Math.abs(normal.x) > Math.abs(normal.z)) {
+            u = vertex.z;
+            v = 1.0f - vertex.y;
+        } else {
+            u = vertex.x;
+            v = 1.0f - vertex.y;
+        }
+
+        consumer.addVertex(pose, relX + vertex.x, relY + vertex.y, relZ + vertex.z)
+                .setColor(255, 255, 255, 255)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(packedLight)
+                .setNormal(pose, normal.x, normal.y, normal.z);
     }
 }

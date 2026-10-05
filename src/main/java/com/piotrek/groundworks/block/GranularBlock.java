@@ -66,34 +66,6 @@ public class GranularBlock extends Block implements EntityBlock {
             cell = ClientGranularStorage.getCell(pos);
         }
 
-        if (cell == null || cell.isEmpty()) {
-            return Shapes.empty();
-        }
-
-        // Build a merged VoxelShape from the 8x8 heightfield
-        VoxelShape combined = Shapes.empty();
-        double step = 1.0 / GranularCell.RESOLUTION; // 0.125m
-
-        for (int z = 0; z < GranularCell.RESOLUTION; z++) {
-            for (int x = 0; x < GranularCell.RESOLUTION; x++) {
-                int height = cell.getColumnHeight(x, z);
-                if (height >= 0) {
-                    double minY = 0.0;
-                    double maxY = (height + 1) * step;
-                    double minX = x * step;
-                    double maxX = minX + step;
-                    double minZ = z * step;
-                    double maxZ = minZ + step;
-
-                    VoxelShape columnBox = Block.box(
-                            minX * 16.0, minY * 16.0, minZ * 16.0,
-                            maxX * 16.0, maxY * 16.0, maxZ * 16.0
-                    );
-                    combined = Shapes.or(combined, columnBox);
-                }
-            }
-        }
-
-        return combined.isEmpty() ? Shapes.block() : combined;
+        return cell == null ? Shapes.empty() : GranularCollisionShapeCache.get(cell);
     }
 }
