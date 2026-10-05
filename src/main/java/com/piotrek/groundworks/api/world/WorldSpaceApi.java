@@ -146,7 +146,7 @@ public final class WorldSpaceApi {
             }
 
             BlockPos pos = candidate.pos();
-            GranularMaterial candidateMaterial = materialAt(level, storage, pos);
+            GranularMaterial candidateMaterial = getMaterial(level, pos);
             if (candidateMaterial == null || candidateMaterial.id() == 0) {
                 continue;
             }
@@ -317,13 +317,17 @@ public final class WorldSpaceApi {
         storage.setDirty();
     }
 
+    /**
+     * Returns the granular material at a block position without forcing lazy conversion.
+     *
+     * <p>Existing granular cells report their stored material. Convertible vanilla
+     * blocks report the material they would become if modified.
+     *
+     * @return material, or null when the position is not Groundworks terrain
+     */
     @Nullable
-    private static GranularMaterial materialAt(
-            ServerLevel level,
-            GranularWorldStorage storage,
-            BlockPos pos
-    ) {
-        GranularCell existing = storage.getCell(pos);
+    public static GranularMaterial getMaterial(ServerLevel level, BlockPos pos) {
+        GranularCell existing = GranularWorldStorage.get(level).getCell(pos);
         if (existing != null) {
             return existing.isEmpty() ? null : existing.material();
         }
