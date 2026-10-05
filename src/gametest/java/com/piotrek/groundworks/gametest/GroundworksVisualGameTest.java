@@ -54,6 +54,7 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
             runSlopePour(context, connection, server);
             runExcavation(context, connection, server);
             runMaterialAwareExcavation(server);
+            context.waitTicks(80);
 
             PileMetrics all = server.computeOnServer(minecraftServer ->
                     measureRegion(GranularWorldStorage.get(minecraftServer.overworld()), 0, 0, 128));
