@@ -48,18 +48,27 @@ Peterwolf's Groundworks is a modular volumetric granular terrain and heavy machi
 All external mods interact with Groundworks exclusively through `com.piotrek.groundworks.api.GroundworksApi`:
 
 ```java
-// Remove up to maxUnits from a single block position
+// Legacy block-local removal
 ExcavationResult result = GroundworksApi.excavate(level, pos, maxUnits);
 
-// Spherical brush removal centered at exact world hit coordinates
-ExcavationResult brush = ExcavationApi.excavateAt(level, pos, hitLocation, maxUnits);
+// Preferred machine API: world-space brush, allowed to cross block boundaries
+ExcavationResult brush = GroundworksApi.excavateAt(level, hitLocation, maxUnits);
+ExcavationResult sphere = GroundworksApi.excavateSphere(level, hitLocation, radius, maxUnits);
 
-// Deposit material with upward overflow
+// Grading primitives using absolute world-space Y
+ExcavationResult cut = GroundworksApi.excavateAbove(level, pos, worldCutY, maxUnits);
+DepositResult fill = GroundworksApi.fillBelow(level, pos, targetWorldY, material, availableUnits);
+
+// Deposit with upward overflow
 DepositResult deposit = GroundworksApi.depositWithOverflow(level, pos, material, units);
 
-// Query cell or surface height (0..7, or -1 if empty)
-GranularCell cell = GroundworksApi.queryCell(level, pos);
-int surfaceMicroY = GroundworksApi.getSurfaceHeight(level, pos, localX, localZ);
+// Non-mutating machine queries
+GranularMaterial terrainMaterial = GroundworksApi.getMaterial(level, pos);
+boolean occupied = GroundworksApi.containsMaterialAt(level, worldPoint);
+double surfaceY = GroundworksApi.getSurfaceWorldY(level, pos, worldX, worldZ);
+
+// Request natural angle-of-repose settling after machine deposition
+GroundworksApi.markForSimulation(level, pos);
 ```
 
 ### Material Registry (`GranularMaterialRegistry`)
