@@ -120,6 +120,14 @@ public final class GroundworksApi {
     }
 
     /**
+     * Returns the material at a position without forcing lazy conversion.
+     */
+    @Nullable
+    public static GranularMaterial getMaterial(ServerLevel level, BlockPos pos) {
+        return WorldSpaceApi.getMaterial(level, pos);
+    }
+
+    /**
      * Returns true when the exact world point lies inside material.
      */
     public static boolean containsMaterialAt(ServerLevel level, Vec3 worldPoint) {
