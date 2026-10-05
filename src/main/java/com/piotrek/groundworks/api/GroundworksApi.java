@@ -56,6 +56,20 @@ public final class GroundworksApi {
     }
 
     /**
+     * Excavate around an exact world-space contact point while accepting only
+     * the requested material. A null or empty material keeps the legacy
+     * first-material-wins behavior.
+     */
+    public static ExcavationResult excavateAt(
+            ServerLevel level,
+            Vec3 worldCenter,
+            int maxUnits,
+            @Nullable GranularMaterial requiredMaterial
+    ) {
+        return WorldSpaceApi.excavateAt(level, worldCenter, maxUnits, requiredMaterial);
+    }
+
+    /**
      * Excavate a spherical brush in world space.
      */
     public static ExcavationResult excavateSphere(
@@ -68,6 +82,21 @@ public final class GroundworksApi {
     }
 
     /**
+     * Excavate a spherical world-space brush while accepting only the requested
+     * material. A null or empty material keeps the legacy first-material-wins behavior.
+     */
+    public static ExcavationResult excavateSphere(
+            ServerLevel level,
+            Vec3 worldCenter,
+            double radius,
+            int maxUnits,
+            @Nullable GranularMaterial requiredMaterial
+    ) {
+        return WorldSpaceApi.excavateSphere(
+                level, worldCenter, radius, maxUnits, requiredMaterial);
+    }
+
+    /**
      * Shave granular terrain at or above an absolute world-space cutting grade.
      */
     public static ExcavationResult excavateAbove(
@@ -77,6 +106,21 @@ public final class GroundworksApi {
             int maxUnits
     ) {
         return WorldSpaceApi.excavateAbove(level, pos, worldCutY, maxUnits);
+    }
+
+    /**
+     * Shave terrain at or above an absolute world-space grade while accepting
+     * only the requested material.
+     */
+    public static ExcavationResult excavateAbove(
+            ServerLevel level,
+            BlockPos pos,
+            double worldCutY,
+            int maxUnits,
+            @Nullable GranularMaterial requiredMaterial
+    ) {
+        return WorldSpaceApi.excavateAbove(
+                level, pos, worldCutY, maxUnits, requiredMaterial);
     }
 
     // Deposition and grading fill
