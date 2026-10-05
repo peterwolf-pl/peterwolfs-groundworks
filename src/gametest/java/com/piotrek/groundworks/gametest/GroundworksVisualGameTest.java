@@ -1,5 +1,8 @@
 package com.piotrek.groundworks.gametest;
 
+import com.piotrek.groundworks.api.GroundworksApi;
+import com.piotrek.groundworks.api.material.GranularMaterial;
+import com.piotrek.groundworks.api.material.GranularMaterialRegistry;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -8,6 +11,8 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.screenshot.TestScreenshotOptions;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 
 import java.nio.file.Path;
 import java.util.stream.Collectors;
@@ -48,6 +53,7 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
             runFourCellBoundary(context, connection, server);
             runSlopePour(context, connection, server);
             runExcavation(context, connection, server);
+            runMaterialAwareExcavation(server);
 
             PileMetrics all = server.computeOnServer(minecraftServer ->
                     measureRegion(GranularWorldStorage.get(minecraftServer.overworld()), 0, 0, 128));
@@ -87,6 +93,7 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         setupFlat(server, 40, -24, 8);
         setupFlat(server, 48, 0, 8);
         setupFlat(server, 24, 48, 8);
+        setupFlat(server, 72, 24, 4);
 
         // A stepped incline whose surface descends toward +Z.
         server.runCommand("fill -8 168 40 8 174 56 minecraft:stone");
@@ -266,6 +273,49 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         assertEquals(9L * 512L - 192L, metrics.totalUnits(), "excavation material conservation");
         assertEquals(0, metrics.dirtyCells(), "excavation stabilization");
         capture(context, connection, "visual_test_flat_excavation_settled");
+    }
+
+    private static void runMaterialAwareExcavation(TestServerContext server) {
+        BlockPos dirtPos = new BlockPos(71, SURFACE_Y, 24);
+        BlockPos sandPos = new BlockPos(72, SURFACE_Y, 24);
+        server.runCommand("setblock 71 " + SURFACE_Y + " 24 minecraft:dirt");
+        server.runCommand("setblock 72 " + SURFACE_Y + " 24 minecraft:sand");
+
+        var result = server.computeOnServer(minecraftServer -> GroundworksApi.excavateSphere(
+                minecraftServer.overworld(),
+                new Vec3(72.0D, SURFACE_Y + 0.5D, 24.5D),
+                0.40D,
+                128,
+                GranularMaterialRegistry.DIRT
+        ));
+
+        if (!result.success()
+                || result.material().id() != GranularMaterialRegistry.DIRT.id()) {
+            throw new AssertionError("Material-aware brush did not excavate requested dirt");
+        }
+
+        int dirtAfter = server.computeOnServer(
+                minecraftServer -> effectiveUnits(minecraftServer.overworld(), dirtPos));
+        int sandAfter = server.computeOnServer(
+                minecraftServer -> effectiveUnits(minecraftServer.overworld(), sandPos));
+
+        if (dirtAfter >= 512) {
+            throw new AssertionError("Material-aware brush did not remove dirt at boundary");
+        }
+        if (sandAfter != 512) {
+            throw new AssertionError(
+                    "Material-aware dirt excavation modified adjacent sand: sandUnits=" + sandAfter);
+        }
+    }
+
+    private static int effectiveUnits(ServerLevel level, BlockPos pos) {
+        var cell = GroundworksApi.queryCell(level, pos);
+        if (cell != null) {
+            return cell.unitCount();
+        }
+
+        GranularMaterial material = GroundworksApi.getMaterial(level, pos);
+        return material == null || material.id() == 0 ? 0 : 512;
     }
 
     private static PileMetrics metrics(TestServerContext server, int centerX, int centerZ, int radius) {
