@@ -108,7 +108,27 @@ public final class WorldSpaceApi {
             Vec3 worldCenter,
             int maxUnits
     ) {
-        return excavateSphere(level, worldCenter, DEFAULT_EXCAVATION_RADIUS, maxUnits);
+        return excavateAt(level, worldCenter, maxUnits, null);
+    }
+
+    /**
+     * Excavate with the standard machine brush while accepting only the requested
+     * material. Null and EMPTY mean that the first occupied material selects the
+     * material for this operation.
+     */
+    public static ExcavationResult excavateAt(
+            ServerLevel level,
+            Vec3 worldCenter,
+            int maxUnits,
+            @Nullable GranularMaterial requiredMaterial
+    ) {
+        return excavateSphere(
+                level,
+                worldCenter,
+                DEFAULT_EXCAVATION_RADIUS,
+                maxUnits,
+                requiredMaterial
+        );
     }
 
     /**
@@ -124,6 +144,20 @@ public final class WorldSpaceApi {
             double radius,
             int maxUnits
     ) {
+        return excavateSphere(level, worldCenter, radius, maxUnits, null);
+    }
+
+    /**
+     * Excavate a spherical brush while accepting only {@code requiredMaterial}.
+     * Null and EMPTY preserve the default first-material-wins behavior.
+     */
+    public static ExcavationResult excavateSphere(
+            ServerLevel level,
+            Vec3 worldCenter,
+            double radius,
+            int maxUnits,
+            @Nullable GranularMaterial requiredMaterial
+    ) {
         if (maxUnits <= 0 || !Double.isFinite(radius) || radius <= 0.0D) {
             return ExcavationResult.NONE;
         }
@@ -137,7 +171,7 @@ public final class WorldSpaceApi {
         Map<Long, GranularCell> cellCache = new HashMap<>();
         Set<BlockPos> changed = new LinkedHashSet<>();
 
-        GranularMaterial selectedMaterial = null;
+        GranularMaterial selectedMaterial = normalizeRequiredMaterial(requiredMaterial);
         int removed = 0;
 
         for (WorldVoxel candidate : candidates) {
@@ -208,6 +242,20 @@ public final class WorldSpaceApi {
             double worldCutY,
             int maxUnits
     ) {
+        return excavateAbove(level, pos, worldCutY, maxUnits, null);
+    }
+
+    /**
+     * Shave a cell at or above an absolute grade while accepting only the
+     * requested material. Null and EMPTY keep the unrestricted behavior.
+     */
+    public static ExcavationResult excavateAbove(
+            ServerLevel level,
+            BlockPos pos,
+            double worldCutY,
+            int maxUnits,
+            @Nullable GranularMaterial requiredMaterial
+    ) {
         if (maxUnits <= 0 || !Double.isFinite(worldCutY)) {
             return ExcavationResult.NONE;
         }
@@ -218,6 +266,13 @@ public final class WorldSpaceApi {
             return ExcavationResult.NONE;
         }
 
+        GranularMaterial required = normalizeRequiredMaterial(requiredMaterial);
+        GranularMaterial candidateMaterial = getMaterial(level, pos);
+        if (required != null
+                && (candidateMaterial == null || candidateMaterial.id() != required.id())) {
+            return ExcavationResult.NONE;
+        }
+
         GranularWorldStorage storage = GranularWorldStorage.get(level);
         GranularCell cell = storage.getOrConvert(pos);
         if (cell == null || cell.isEmpty()) {
@@ -225,6 +280,10 @@ public final class WorldSpaceApi {
         }
 
         GranularMaterial material = cell.material();
+        if (required != null && material.id() != required.id()) {
+            return ExcavationResult.NONE;
+        }
+
         int removed = 0;
 
         for (int y = GranularCell.RESOLUTION - 1; y >= startY && removed < maxUnits; y--) {
@@ -332,6 +391,15 @@ public final class WorldSpaceApi {
             return existing.isEmpty() ? null : existing.material();
         }
         return GranularMaterialRegistry.forBlockState(level.getBlockState(pos));
+    }
+
+    @Nullable
+    private static GranularMaterial normalizeRequiredMaterial(
+            @Nullable GranularMaterial requiredMaterial
+    ) {
+        return requiredMaterial == null || requiredMaterial.id() == 0
+                ? null
+                : requiredMaterial;
     }
 
     private static int countEmptyBelow(GranularCell cell, int fullLayers) {
