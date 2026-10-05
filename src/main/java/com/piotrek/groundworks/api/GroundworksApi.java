@@ -5,10 +5,12 @@ import com.piotrek.groundworks.api.deposit.DepositResult;
 import com.piotrek.groundworks.api.excavation.ExcavationApi;
 import com.piotrek.groundworks.api.excavation.ExcavationResult;
 import com.piotrek.groundworks.api.material.GranularMaterial;
+import com.piotrek.groundworks.api.world.WorldSpaceApi;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -16,25 +18,15 @@ import java.util.List;
 /**
  * Public API for Peterwolf's Groundworks.
  *
- * <p>Future mods (Excavators, Conveyors, Mining, Dump Trucks) call this API.
- * They never need to know internal terrain storage details.
- *
- * <h2>Usage</h2>
- * <pre>{@code
- *   ExcavationResult result = GroundworksApi.excavate(level, pos, 32);
- *   if (result.success()) {
- *       bucket.addMaterial(result.material(), result.unitsRemoved());
- *   }
- *
- *   DepositResult deposit = GroundworksApi.deposit(level, pos, material, units);
- *   int leftover = deposit.unitsRejected();
- * }</pre>
+ * <p>Future mods such as excavators, loaders, bulldozers, conveyors, mining
+ * machines, and dump trucks should call this API instead of touching internal
+ * terrain storage or synchronization details.
  */
 public final class GroundworksApi {
 
     private GroundworksApi() {}
 
-    // ── Excavation ───────────────────────────────────────────────────
+    // Excavation
 
     /**
      * Remove up to {@code maxUnits} from a single position.
@@ -51,7 +43,43 @@ public final class GroundworksApi {
         return ExcavationApi.excavateMulti(level, positions, maxUnits);
     }
 
-    // ── Deposition ───────────────────────────────────────────────────
+    /**
+     * Excavate around an exact world-space contact point using the standard
+     * Groundworks machine brush. The brush can cross block boundaries.
+     */
+    public static ExcavationResult excavateAt(
+            ServerLevel level,
+            Vec3 worldCenter,
+            int maxUnits
+    ) {
+        return WorldSpaceApi.excavateAt(level, worldCenter, maxUnits);
+    }
+
+    /**
+     * Excavate a spherical brush in world space.
+     */
+    public static ExcavationResult excavateSphere(
+            ServerLevel level,
+            Vec3 worldCenter,
+            double radius,
+            int maxUnits
+    ) {
+        return WorldSpaceApi.excavateSphere(level, worldCenter, radius, maxUnits);
+    }
+
+    /**
+     * Shave granular terrain at or above an absolute world-space cutting grade.
+     */
+    public static ExcavationResult excavateAbove(
+            ServerLevel level,
+            BlockPos pos,
+            double worldCutY,
+            int maxUnits
+    ) {
+        return WorldSpaceApi.excavateAbove(level, pos, worldCutY, maxUnits);
+    }
+
+    // Deposition and grading fill
 
     /**
      * Deposit material at a position.
@@ -69,7 +97,55 @@ public final class GroundworksApi {
         return DepositApi.depositWithOverflow(level, origin, material, units);
     }
 
-    // ── Queries ──────────────────────────────────────────────────────
+    /**
+     * Fill only the microvoxel volume fully below an absolute world-space grade.
+     */
+    public static DepositResult fillBelow(
+            ServerLevel level,
+            BlockPos pos,
+            double targetWorldY,
+            GranularMaterial material,
+            int availableUnits
+    ) {
+        return WorldSpaceApi.fillBelow(level, pos, targetWorldY, material, availableUnits);
+    }
+
+    // World-space queries
+
+    /**
+     * Returns true when a cell is granular or can be lazily converted.
+     */
+    public static boolean isDiggable(ServerLevel level, BlockPos pos) {
+        return WorldSpaceApi.isDiggable(level, pos);
+    }
+
+    /**
+     * Returns true when the exact world point lies inside material.
+     */
+    public static boolean containsMaterialAt(ServerLevel level, Vec3 worldPoint) {
+        return WorldSpaceApi.containsMaterialAt(level, worldPoint);
+    }
+
+    /**
+     * Returns the absolute world-space surface Y for a cell column.
+     */
+    public static double getSurfaceWorldY(
+            ServerLevel level,
+            BlockPos pos,
+            double worldX,
+            double worldZ
+    ) {
+        return WorldSpaceApi.getSurfaceWorldY(level, pos, worldX, worldZ);
+    }
+
+    /**
+     * Mark a granular cell for natural relaxation.
+     */
+    public static void markForSimulation(ServerLevel level, BlockPos pos) {
+        WorldSpaceApi.markForSimulation(level, pos);
+    }
+
+    // Low-level queries retained for compatibility
 
     /**
      * Query the material at a position.
