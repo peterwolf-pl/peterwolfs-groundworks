@@ -14,6 +14,7 @@ Groundworks exposes machine-facing terrain operations in world coordinates throu
 
 ```java
 boolean diggable = GroundworksApi.isDiggable(level, blockPos);
+GranularMaterial material = GroundworksApi.getMaterial(level, blockPos);
 boolean occupied = GroundworksApi.containsMaterialAt(level, worldPoint);
 
 double surfaceY = GroundworksApi.getSurfaceWorldY(
@@ -24,7 +25,7 @@ double surfaceY = GroundworksApi.getSurfaceWorldY(
 );
 ```
 
-Unconverted convertible blocks are treated as full terrain for queries.
+Unconverted convertible blocks are treated as full terrain for queries. `getMaterial` is non-mutating and reports the material a vanilla block would become without forcing lazy conversion.
 
 ## World-space excavation
 
