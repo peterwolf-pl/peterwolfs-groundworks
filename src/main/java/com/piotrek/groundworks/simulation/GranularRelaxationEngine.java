@@ -210,7 +210,6 @@ public final class GranularRelaxationEngine {
             BlockPos scanPos = new BlockPos(sourcePos.getX(), y, sourcePos.getZ());
             GranularCell granular = storage.getCell(scanPos);
             if (granular != null && !granular.isEmpty()) {
-                if (granular.materialId() != materialId) return null;
                 if (!granular.isFull()) return new Receiver(scanPos, granular, granular.unitCount());
 
                 BlockPos abovePos = scanPos.above();
