@@ -70,7 +70,9 @@ public final class GranularSurfaceMesher {
         for (int z = 0; z < GranularCell.RESOLUTION; z++) {
             for (int x = 0; x < GranularCell.RESOLUTION; x++) {
                 int columnHeight = cell.getColumnHeight(x, z);
-                if (columnHeight < 0 || isCoveredFromAbove(pos, x, z, lookup)) continue;
+                if (columnHeight < 0) continue;
+
+                boolean coveredFromAbove = isCoveredFromAbove(pos, x, z, lookup);
 
                 float x0 = x * STEP;
                 float x1 = (x + 1) * STEP;
@@ -82,33 +84,52 @@ public final class GranularSurfaceMesher {
                 float h11 = vertexHeight(pos, x + 1, z + 1, lookup);
                 float h10 = vertexHeight(pos, x + 1, z, lookup);
 
-                quads.add(new Quad(
-                        new Vector3f(x0, h00, z0),
-                        new Vector3f(x0, h01, z1),
-                        new Vector3f(x1, h11, z1),
-                        new Vector3f(x1, h10, z0),
-                        surfaceNormal(pos, x, z, lookup),
-                        surfaceNormal(pos, x, z + 1, lookup),
-                        surfaceNormal(pos, x + 1, z + 1, lookup),
-                        surfaceNormal(pos, x + 1, z, lookup)
-                ));
+                // A cell above hides only this column's horizontal top face.
+                // Its exposed lateral faces still belong to this cell. Skipping
+                // the whole column here made every lower tier disappear from the
+                // outside whenever a pile became taller than one block.
+                if (!coveredFromAbove) {
+                    quads.add(new Quad(
+                            new Vector3f(x0, h00, z0),
+                            new Vector3f(x0, h01, z1),
+                            new Vector3f(x1, h11, z1),
+                            new Vector3f(x1, h10, z0),
+                            surfaceNormal(pos, x, z, lookup),
+                            surfaceNormal(pos, x, z + 1, lookup),
+                            surfaceNormal(pos, x + 1, z + 1, lookup),
+                            surfaceNormal(pos, x + 1, z, lookup)
+                    ));
+                }
+
+                // When this column is buried by material above, a compacted lower
+                // cell reaches the block boundary exactly. Do not use the smoothed
+                // edge height for its exterior wall or a visible gap can remain
+                // between this cell and the upper cell's skirt.
+                float sideH00 = sideHeight(columnHeight, h00, coveredFromAbove);
+                float sideH01 = sideHeight(columnHeight, h01, coveredFromAbove);
+                float sideH11 = sideHeight(columnHeight, h11, coveredFromAbove);
+                float sideH10 = sideHeight(columnHeight, h10, coveredFromAbove);
 
                 if (sampleColumnHeight(pos, x, z - 1, lookup) <= 0.0f) {
-                    quads.add(sideQuad(x1, h10, x0, h00, z0, 0, 0, -1));
+                    quads.add(sideQuad(x1, sideH10, x0, sideH00, z0, 0, 0, -1));
                 }
                 if (sampleColumnHeight(pos, x, z + 1, lookup) <= 0.0f) {
-                    quads.add(sideQuad(x0, h01, x1, h11, z1, 0, 0, 1));
+                    quads.add(sideQuad(x0, sideH01, x1, sideH11, z1, 0, 0, 1));
                 }
                 if (sampleColumnHeight(pos, x - 1, z, lookup) <= 0.0f) {
-                    quads.add(sideQuadZ(z0, h00, z1, h01, x0, -1, 0, 0));
+                    quads.add(sideQuadZ(z0, sideH00, z1, sideH01, x0, -1, 0, 0));
                 }
                 if (sampleColumnHeight(pos, x + 1, z, lookup) <= 0.0f) {
-                    quads.add(sideQuadZ(z1, h11, z0, h10, x1, 1, 0, 0));
+                    quads.add(sideQuadZ(z1, sideH11, z0, sideH10, x1, 1, 0, 0));
                 }
             }
         }
 
         return new CellMesh(cell.revision(), List.copyOf(quads));
+    }
+
+    private static float sideHeight(int columnHeight, float smoothedHeight, boolean coveredFromAbove) {
+        return coveredFromAbove ? (columnHeight + 1) * STEP : smoothedHeight;
     }
 
     private static Quad sideQuad(
