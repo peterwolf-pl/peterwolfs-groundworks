@@ -176,7 +176,6 @@ public final class GranularRelaxationEngine {
             BlockPos scanPos = new BlockPos(x, y, z);
             GranularCell granular = storage.getCell(scanPos);
             if (granular != null && !granular.isEmpty()) {
-                if (granular.materialId() != materialId) return null;
                 if (!granular.isFull()) {
                     return new SurfaceReceiver(
                             new Receiver(scanPos, granular, granular.unitCount()),
@@ -239,7 +238,6 @@ public final class GranularRelaxationEngine {
         GranularCell existing = storage.getCell(pos);
         if (existing != null) {
             if (existing.isFull()) return null;
-            if (!existing.isEmpty() && existing.materialId() != materialId) return null;
             return new Receiver(pos, existing, existing.unitCount());
         }
 
