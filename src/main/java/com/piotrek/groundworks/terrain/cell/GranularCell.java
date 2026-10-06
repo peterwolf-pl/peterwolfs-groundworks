@@ -1,5 +1,7 @@
 package com.piotrek.groundworks.terrain.cell;
 
+import com.piotrek.groundworks.GroundworksMod;
+import com.piotrek.groundworks.api.material.GranularComposition;
 import com.piotrek.groundworks.api.material.GranularMaterial;
 import com.piotrek.groundworks.api.material.GranularMaterialRegistry;
 import net.minecraft.nbt.CompoundTag;
@@ -10,153 +12,223 @@ import java.util.Arrays;
  * A single granular cell occupying one vanilla block position.
  *
  * <h2>Storage model</h2>
- * <p>Internal resolution: 8×8×8 = 512 microvoxels.
- * Occupancy is stored as a 512-bit bitset ({@code long[8]}, 64 bytes).
- * One bit per microvoxel: 1 = occupied, 0 = empty.
- *
- * <h2>Indexing convention</h2>
- * <pre>
- *   index = x + 8 * (z + 8 * y)
- *   x = index % 8
- *   z = (index / 8) % 8
- *   y = index / 64
- * </pre>
- * <p>This is XZY order. Y is the major axis (highest bits), which makes
- * vertical column operations cheaper (one contiguous 64-bit long per y-layer).
+ * <p>Internal resolution: 8x8x8 = 512 microvoxels. Occupancy answers where
+ * material exists. {@link GranularComposition} independently tracks what the
+ * occupied volume contains, allowing exact dirt/sand/gravel/cobblestone mixes
+ * without storing a material id for every microvoxel.</p>
  *
  * <h2>Invariants</h2>
  * <ul>
- *   <li>{@code unitCount == Long.bitCount(occupancy[0]) + ... + Long.bitCount(occupancy[7])}</li>
+ *   <li>{@code unitCount == bitCount(occupancy)}</li>
+ *   <li>{@code unitCount == composition.totalUnits()}</li>
  *   <li>Material must never be created or destroyed by cell operations.</li>
  * </ul>
  */
 public final class GranularCell {
 
-    /** Microvoxels per axis. */
     public static final int RESOLUTION = 8;
-    /** Total microvoxels per cell. */
-    public static final int TOTAL_UNITS = RESOLUTION * RESOLUTION * RESOLUTION; // 512
-    /** Number of longs in the occupancy bitset. */
-    public static final int LONGS = TOTAL_UNITS / Long.SIZE; // 8
+    public static final int TOTAL_UNITS = RESOLUTION * RESOLUTION * RESOLUTION;
+    public static final int LONGS = TOTAL_UNITS / Long.SIZE;
 
-    /** Current data format version for serialization. */
-    public static final int DATA_VERSION = 1;
+    /** Version 2 adds exact per-material composition counts. */
+    public static final int DATA_VERSION = 2;
 
+    /**
+     * Compatibility material id. For a mixture this is always the dominant
+     * material. Existing machinery can continue using materialId()/material().
+     */
     private int materialId;
+    private final GranularComposition composition = new GranularComposition();
     private final long[] occupancy = new long[LONGS];
     private int unitCount;
     private int revision;
     private int dirtyFlags;
 
-    // Cached column heights for fast surface queries. -1 = not cached.
     private final byte[] columnHeights = new byte[RESOLUTION * RESOLUTION];
 
     public GranularCell() {
         Arrays.fill(columnHeights, (byte) -1);
     }
 
-    // ── Factory methods ──────────────────────────────────────────────
-
-    /**
-     * Create a fully occupied cell for the given material.
-     * This is the result of converting a vanilla block.
-     */
     public static GranularCell full(GranularMaterial material) {
         GranularCell cell = new GranularCell();
         cell.materialId = material.id();
-        Arrays.fill(cell.occupancy, -1L); // all bits set
+        cell.composition.add(material, TOTAL_UNITS);
+        Arrays.fill(cell.occupancy, -1L);
         cell.unitCount = TOTAL_UNITS;
         cell.revision = 1;
         cell.dirtyFlags = DirtyFlags.ALL;
         return cell;
     }
 
-    /**
-     * Create an empty cell (air). Material id 0.
-     */
     public static GranularCell empty() {
-        GranularCell cell = new GranularCell();
-        cell.materialId = 0;
-        cell.unitCount = 0;
-        cell.revision = 0;
-        cell.dirtyFlags = 0;
-        return cell;
+        return new GranularCell();
     }
 
-    // ── Microvoxel indexing ──────────────────────────────────────────
-
-    /**
-     * Compute the flat index for microvoxel coordinates.
-     * <pre>index = x + 8 * (z + 8 * y)</pre>
-     *
-     * @param x 0..7
-     * @param y 0..7
-     * @param z 0..7
-     * @return flat index 0..511
-     */
     public static int index(int x, int y, int z) {
         return x + RESOLUTION * (z + RESOLUTION * y);
     }
 
-    /** Extract x from flat index. */
     public static int indexX(int index) { return index & 7; }
-    /** Extract z from flat index. */
     public static int indexZ(int index) { return (index >> 3) & 7; }
-    /** Extract y from flat index. */
     public static int indexY(int index) { return (index >> 6) & 7; }
 
-    // ── Bit-level access ─────────────────────────────────────────────
-
-    /** Check if a specific microvoxel is occupied. */
     public boolean isSet(int x, int y, int z) {
         int idx = index(x, y, z);
         return (occupancy[idx >> 6] & (1L << (idx & 63))) != 0;
     }
 
-    /** Set a microvoxel as occupied. Returns true if it was previously empty. */
+    /**
+     * Set one occupied microvoxel using the current compatibility material.
+     * Call setMaterialId() first when constructing a cell through this low-level API.
+     */
     public boolean set(int x, int y, int z) {
+        if (materialId <= 0) return false;
+
         int idx = index(x, y, z);
         int word = idx >> 6;
         long bit = 1L << (idx & 63);
-        if ((occupancy[word] & bit) != 0) return false; // already set
+        if ((occupancy[word] & bit) != 0) return false;
+
         occupancy[word] |= bit;
         unitCount++;
+        composition.add(materialId, 1);
+        refreshDominantMaterial();
         invalidateColumn(x, z);
-        markDirty(DirtyFlags.OCCUPANCY);
+        markDirty(DirtyFlags.OCCUPANCY | DirtyFlags.MATERIAL);
         return true;
     }
 
-    /** Clear a microvoxel. Returns true if it was previously occupied. */
+    /**
+     * Clear one microvoxel from the current dominant material.
+     */
     public boolean clear(int x, int y, int z) {
+        int selectedMaterial = materialId > 0 ? materialId : composition.dominantMaterialId();
+        return clearMaterial(x, y, z, selectedMaterial);
+    }
+
+    /**
+     * Clear one occupied microvoxel while consuming a specific composition
+     * component. Geometry and composition are intentionally decoupled, so this
+     * lets a legacy single-material excavation keep removing the material it
+     * selected at the start even if another component becomes dominant midway.
+     */
+    public boolean clearMaterial(int x, int y, int z, int selectedMaterialId) {
+        if (selectedMaterialId <= 0 || composition.unitsOf(selectedMaterialId) <= 0) return false;
+
         int idx = index(x, y, z);
         int word = idx >> 6;
         long bit = 1L << (idx & 63);
-        if ((occupancy[word] & bit) == 0) return false; // already clear
+        if ((occupancy[word] & bit) == 0) return false;
+
+        if (composition.remove(selectedMaterialId, 1) != 1) return false;
+
         occupancy[word] &= ~bit;
         unitCount--;
+        refreshDominantMaterial();
         invalidateColumn(x, z);
-        markDirty(DirtyFlags.OCCUPANCY);
+        markDirty(DirtyFlags.OCCUPANCY | DirtyFlags.MATERIAL);
         return true;
     }
 
-    // ── Bulk operations ──────────────────────────────────────────────
-
     /**
-     * Remove up to {@code maxUnits} from the top of the cell.
-     * Removes from highest Y first, within each layer scans XZ.
-     *
-     * @return the number of units actually removed
+     * Legacy single-material extraction. For mixtures this removes only the
+     * current dominant material so callers which pair material() with the
+     * returned count do not silently transmute other components.
      */
     public int removeFromTop(int maxUnits) {
-        if (maxUnits <= 0 || unitCount == 0) return 0;
+        int selectedMaterial = materialId > 0 ? materialId : composition.dominantMaterialId();
+        return removeMaterialFromTop(selectedMaterial, maxUnits);
+    }
+
+    public int removeMaterialFromTop(int selectedMaterialId, int maxUnits) {
+        if (selectedMaterialId <= 0 || maxUnits <= 0 || unitCount == 0) return 0;
+
+        int available = composition.unitsOf(selectedMaterialId);
+        int target = Math.min(Math.min(maxUnits, unitCount), available);
+        if (target <= 0) return 0;
+
+        int removed = removeOccupancyFromTop(target);
+        int compositionRemoved = composition.remove(selectedMaterialId, removed);
+        if (compositionRemoved != removed) {
+            throw new IllegalStateException("Composition conservation violated while excavating");
+        }
+        refreshDominantMaterial();
+        dirtyFlags |= DirtyFlags.MATERIAL;
+        return removed;
+    }
+
+    /**
+     * Extract a proportional sample for internal granular flow. This is the
+     * path used when a mixed cell relaxes into another cell.
+     */
+    public GranularComposition extractCompositionFromTop(int maxUnits) {
+        if (maxUnits <= 0 || unitCount == 0) return new GranularComposition();
 
         int target = Math.min(maxUnits, unitCount);
-        int removed = 0;
-        for (int y = RESOLUTION - 1; y >= 0 && removed < target; y--) {
-            long occupied = occupancy[y];
-            long selected = takeLowestBits(occupied, target - removed);
-            if (selected == 0L) continue;
+        GranularComposition extracted = composition.extractProportional(target);
+        int removed = removeOccupancyFromTop(extracted.totalUnits());
+        if (removed != extracted.totalUnits()) {
+            throw new IllegalStateException("Occupancy/composition extraction mismatch");
+        }
+        refreshDominantMaterial();
+        dirtyFlags |= DirtyFlags.MATERIAL;
+        return extracted;
+    }
 
+    public int addFromBottom(int maxUnits) {
+        if (materialId <= 0) {
+            materialId = defaultMaterialId();
+        }
+        return addMaterialFromBottom(GranularMaterialRegistry.byId(materialId), maxUnits);
+    }
+
+    public int addMaterialFromBottom(GranularMaterial material, int maxUnits) {
+        if (material == null || material.id() <= 0 || maxUnits <= 0) return 0;
+        int added = addOccupancyFromBottom(maxUnits);
+        if (added > 0) {
+            composition.add(material, added);
+            refreshDominantMaterial();
+            dirtyFlags |= DirtyFlags.MATERIAL;
+        }
+        return added;
+    }
+
+    /**
+     * Add an exact mixture, proportionally clipping it when the cell has less
+     * free volume than the incoming composition.
+     */
+    public GranularComposition addCompositionFromBottom(GranularComposition incoming) {
+        if (incoming == null || incoming.isEmpty() || unitCount >= TOTAL_UNITS) {
+            return new GranularComposition();
+        }
+
+        int capacity = TOTAL_UNITS - unitCount;
+        GranularComposition accepted = incoming.copy();
+        if (accepted.totalUnits() > capacity) {
+            accepted = accepted.extractProportional(capacity);
+        }
+
+        int added = addOccupancyFromBottom(accepted.totalUnits());
+        if (added != accepted.totalUnits()) {
+            throw new IllegalStateException("Occupancy/composition deposit mismatch");
+        }
+
+        composition.addAll(accepted);
+        refreshDominantMaterial();
+        dirtyFlags |= DirtyFlags.MATERIAL;
+        return accepted;
+    }
+
+    private int removeOccupancyFromTop(int target) {
+        if (target <= 0 || unitCount == 0) return 0;
+
+        int boundedTarget = Math.min(target, unitCount);
+        int removed = 0;
+        for (int y = RESOLUTION - 1; y >= 0 && removed < boundedTarget; y--) {
+            long occupied = occupancy[y];
+            long selected = takeLowestBits(occupied, boundedTarget - removed);
+            if (selected == 0L) continue;
             occupancy[y] = occupied & ~selected;
             removed += Long.bitCount(selected);
         }
@@ -169,12 +241,7 @@ public final class GranularCell {
         return removed;
     }
 
-    /**
-     * Add up to {@code maxUnits} to the cell, filling from bottom Y up.
-     *
-     * @return the number of units actually added
-     */
-    public int addFromBottom(int maxUnits) {
+    private int addOccupancyFromBottom(int maxUnits) {
         if (maxUnits <= 0 || unitCount >= TOTAL_UNITS) return 0;
 
         int target = Math.min(maxUnits, TOTAL_UNITS - unitCount);
@@ -183,7 +250,6 @@ public final class GranularCell {
             long occupied = occupancy[y];
             long selected = takeLowestBits(~occupied, target - added);
             if (selected == 0L) continue;
-
             occupancy[y] = occupied | selected;
             added += Long.bitCount(selected);
         }
@@ -220,9 +286,6 @@ public final class GranularCell {
         revision += mutationCount;
     }
 
-    /**
-     * Recount units from the occupancy bitset. Used for validation.
-     */
     public int recount() {
         int count = 0;
         for (long word : occupancy) {
@@ -232,32 +295,30 @@ public final class GranularCell {
     }
 
     /**
-     * Recompute and store the unit count after occupancy words are copied in bulk.
-     * Network and render snapshots must call this after writing {@link #occupancy()}.
-     *
-     * @return the refreshed unit count
+     * Recompute count after a bulk occupancy copy. If no composition has been
+     * supplied yet, reconstruct a pure composition from the compatibility id.
      */
     public int refreshUnitCount() {
         unitCount = recount();
+        if (unitCount == 0) {
+            composition.clear();
+            materialId = 0;
+        } else if (composition.totalUnits() != unitCount) {
+            composition.clear();
+            int fallbackId = materialId > 0 ? materialId : defaultMaterialId();
+            if (fallbackId > 0) {
+                composition.add(fallbackId, unitCount);
+            }
+        }
+        refreshDominantMaterial();
         invalidateAllColumns();
         return unitCount;
     }
 
-    /**
-     * Validate that {@code unitCount} matches the actual bitset population.
-     *
-     * @return true if consistent
-     */
     public boolean validate() {
-        return unitCount == recount();
+        return unitCount == recount() && unitCount == composition.totalUnits();
     }
 
-    // ── Column height cache ──────────────────────────────────────────
-
-    /**
-     * Get the top occupied Y for a given (x,z) column, 0-indexed.
-     * Returns -1 if the column is empty.
-     */
     public int getColumnHeight(int x, int z) {
         int ci = x + RESOLUTION * z;
         if (columnHeights[ci] == -1) {
@@ -277,12 +338,9 @@ public final class GranularCell {
         columnHeights[x + RESOLUTION * z] = -1;
     }
 
-    /** Invalidate all cached column heights. */
     public void invalidateAllColumns() {
         Arrays.fill(columnHeights, (byte) -1);
     }
-
-    // ── Dirty flags ──────────────────────────────────────────────────
 
     public void markDirty(int flag) {
         dirtyFlags |= flag;
@@ -305,9 +363,6 @@ public final class GranularCell {
         dirtyFlags &= ~flag;
     }
 
-    // ── Serialization ────────────────────────────────────────────────
-
-    /** Serialize to NBT. */
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putInt("dataVersion", DATA_VERSION);
@@ -315,46 +370,65 @@ public final class GranularCell {
         tag.putLongArray("occupancy", occupancy.clone());
         tag.putInt("unitCount", unitCount);
         tag.putInt("revision", revision);
+
+        int[] counts = composition.toArray();
+        for (int id = 1; id < counts.length; id++) {
+            if (counts[id] > 0) {
+                tag.putInt("materialUnits_" + id, counts[id]);
+            }
+        }
         return tag;
     }
 
-    /** Deserialize from NBT. Returns null on corrupt data. */
     public static GranularCell load(CompoundTag tag) {
         if (!tag.contains("dataVersion")) return null;
         int version = tag.getIntOr("dataVersion", 0);
         if (version < 1 || version > DATA_VERSION) return null;
 
         String matName = tag.getStringOr("material", "");
-        GranularMaterial mat = GranularMaterialRegistry.byName(matName);
-        if (mat == null) {
-            // Unknown material — preserve data but mark as empty
-            mat = GranularMaterial.EMPTY;
-        }
+        GranularMaterial legacyMaterial = GranularMaterialRegistry.byName(matName);
+        if (legacyMaterial == null) legacyMaterial = GranularMaterial.EMPTY;
 
         var optOcc = tag.getLongArray("occupancy");
         if (optOcc.isEmpty() || optOcc.get().length != LONGS) return null;
-        long[] occ = optOcc.get();
-
-        int storedCount = tag.getIntOr("unitCount", 0);
 
         GranularCell cell = new GranularCell();
-        cell.materialId = mat.id();
-        System.arraycopy(occ, 0, cell.occupancy, 0, LONGS);
+        System.arraycopy(optOcc.get(), 0, cell.occupancy, 0, LONGS);
         cell.unitCount = cell.recount();
 
-        // Validate stored count
+        int storedCount = tag.getIntOr("unitCount", 0);
         if (cell.unitCount != storedCount) {
-            com.piotrek.groundworks.GroundworksMod.LOGGER.warn(
+            GroundworksMod.LOGGER.warn(
                     "[Groundworks] Unit count mismatch on load: stored={}, actual={}. Using actual.",
                     storedCount, cell.unitCount);
         }
 
+        if (version >= 2) {
+            int[] counts = new int[Math.max(1, GranularMaterialRegistry.count())];
+            for (int id = 1; id < counts.length; id++) {
+                counts[id] = Math.max(0, tag.getIntOr("materialUnits_" + id, 0));
+            }
+            cell.composition.replaceWith(counts);
+        }
+
+        if (cell.composition.totalUnits() != cell.unitCount) {
+            if (version >= 2 && cell.unitCount > 0) {
+                GroundworksMod.LOGGER.warn(
+                        "[Groundworks] Composition mismatch on load: composition={}, occupancy={}. "
+                                + "Falling back to legacy material {}.",
+                        cell.composition.totalUnits(), cell.unitCount, legacyMaterial.name());
+            }
+            cell.composition.clear();
+            if (legacyMaterial.id() > 0 && cell.unitCount > 0) {
+                cell.composition.add(legacyMaterial, cell.unitCount);
+            }
+        }
+
+        cell.refreshDominantMaterial();
         cell.revision = tag.getIntOr("revision", 0);
         cell.invalidateAllColumns();
         return cell;
     }
-
-    // ── Accessors ────────────────────────────────────────────────────
 
     public int materialId() { return materialId; }
     public GranularMaterial material() { return GranularMaterialRegistry.byId(materialId); }
@@ -365,14 +439,88 @@ public final class GranularCell {
     public boolean isEmpty() { return unitCount == 0; }
     public boolean isFull() { return unitCount == TOTAL_UNITS; }
 
+    public GranularComposition composition() {
+        return composition.copy();
+    }
+
+    public int[] compositionUnits() {
+        return composition.toArray();
+    }
+
+    public int unitsOfMaterial(int id) {
+        return composition.unitsOf(id);
+    }
+
+    public boolean isPureMaterial() {
+        return composition.isPure();
+    }
+
+    public int pureMaterialId() {
+        return composition.pureMaterialId();
+    }
+
+    public float effectiveAngleOfRepose() {
+        return composition.weightedAngleOfRepose();
+    }
+
+    public float effectiveCohesion() {
+        return composition.weightedCohesion();
+    }
+
+    public float effectiveDensity() {
+        return composition.weightedDensity();
+    }
+
+    public float effectiveSlideProbability() {
+        return composition.weightedSlideProbability();
+    }
+
+    public int visualMaterialId(long seed, int microX, int microY, int microZ) {
+        return composition.sampleVisualMaterial(seed, microX, microY, microZ);
+    }
+
+    /**
+     * Compatibility setter. On a populated cell this intentionally converts the
+     * composition to a pure material. Network code should follow it with
+     * setCompositionUnits() when reconstructing a mixed cell.
+     */
     public void setMaterialId(int id) {
         this.materialId = id;
+        if (unitCount > 0) {
+            composition.clear();
+            if (id > 0) composition.add(id, unitCount);
+        }
         markDirty(DirtyFlags.MATERIAL);
+    }
+
+    public void setCompositionUnits(int[] counts) {
+        GranularComposition replacement = new GranularComposition();
+        replacement.replaceWith(counts);
+        if (replacement.totalUnits() != unitCount) {
+            throw new IllegalArgumentException(
+                    "Composition total " + replacement.totalUnits()
+                            + " does not match occupancy " + unitCount);
+        }
+        composition.replaceWith(replacement.toArray());
+        refreshDominantMaterial();
+        markDirty(DirtyFlags.MATERIAL);
+    }
+
+    private void refreshDominantMaterial() {
+        materialId = composition.dominantMaterialId();
+        if (unitCount == 0) materialId = 0;
+    }
+
+    private static int defaultMaterialId() {
+        return GranularMaterialRegistry.DIRT != null
+                ? GranularMaterialRegistry.DIRT.id()
+                : 1;
     }
 
     @Override
     public String toString() {
         return "GranularCell{material=" + material().name()
+                + ", composition=" + composition
                 + ", units=" + unitCount + "/" + TOTAL_UNITS
                 + ", rev=" + revision
                 + ", dirty=" + Integer.toBinaryString(dirtyFlags) + "}";

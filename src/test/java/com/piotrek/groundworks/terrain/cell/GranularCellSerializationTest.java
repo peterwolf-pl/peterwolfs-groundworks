@@ -50,6 +50,27 @@ class GranularCellSerializationTest {
     }
 
     @Test
+    @DisplayName("NBT roundtrip preserves exact mixed composition")
+    void testMixedCompositionNbtRoundtrip() {
+        GranularCell original = GranularCell.empty();
+        original.setMaterialId(GranularMaterialRegistry.DIRT.id());
+        original.addMaterialFromBottom(GranularMaterialRegistry.DIRT, 205);
+        original.addMaterialFromBottom(GranularMaterialRegistry.GRAVEL, 205);
+        original.addMaterialFromBottom(GranularMaterialRegistry.SAND, 102);
+
+        CompoundTag tag = original.save();
+        GranularCell loaded = GranularCell.load(tag);
+
+        assertNotNull(loaded);
+        assertEquals(512, loaded.unitCount());
+        assertEquals(205, loaded.unitsOfMaterial(GranularMaterialRegistry.DIRT.id()));
+        assertEquals(205, loaded.unitsOfMaterial(GranularMaterialRegistry.GRAVEL.id()));
+        assertEquals(102, loaded.unitsOfMaterial(GranularMaterialRegistry.SAND.id()));
+        assertFalse(loaded.isPureMaterial());
+        assertTrue(loaded.validate());
+    }
+
+    @Test
     @DisplayName("Column heights are computed correctly and match microvoxel state")
     void testColumnHeights() {
         GranularCell cell = GranularCell.full(GranularMaterialRegistry.DIRT);

@@ -9,15 +9,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /**
- * Server-to-client payload carrying a delta update or full state of a single granular cell.
- *
- * <p>To save network bandwidth, this payload supports:
- * <ul>
- *   <li><b>Full state sync:</b> When isDelta is false, sends all 8 occupancy longs.</li>
- *   <li><b>XOR Delta sync:</b> When isDelta is true, sends a mask byte indicating which
- *       of the 8 occupancy words changed, followed only by the changed words.</li>
- *   <li><b>Removal sync:</b> When unitCount is 0, indicates the cell was cleared.</li>
- * </ul>
+ * Server-to-client payload carrying occupancy plus exact material composition.
  */
 public record GranularCellSyncPayload(
         BlockPos pos,
@@ -26,44 +18,38 @@ public record GranularCellSyncPayload(
         int revision,
         boolean isDelta,
         int changedWordMask,
-        long[] words
+        long[] words,
+        int[] compositionUnits
 ) implements CustomPacketPayload {
 
     public static final Type<GranularCellSyncPayload> TYPE = new Type<>(
             Identifier.fromNamespaceAndPath(GroundworksMod.MOD_ID, "cell_sync")
     );
 
-    /** Factory for a full state sync packet. */
     public static GranularCellSyncPayload full(BlockPos pos, GranularCell cell) {
-        long[] occ = cell.occupancy().clone();
         return new GranularCellSyncPayload(
                 pos,
                 cell.materialId(),
                 cell.unitCount(),
                 cell.revision(),
                 false,
-                0xFF, // all 8 words
-                occ
+                0xFF,
+                cell.occupancy().clone(),
+                cell.compositionUnits()
         );
     }
 
-    /** Factory for an empty/removed cell sync packet. */
     public static GranularCellSyncPayload remove(BlockPos pos) {
         return new GranularCellSyncPayload(
-                pos,
-                0,
-                0,
-                0,
-                false,
-                0,
-                new long[0]
+                pos, 0, 0, 0, false, 0, new long[0], new int[0]
         );
     }
 
-    /**
-     * Factory for an XOR delta sync packet relative to a known previous occupancy bitset.
-     */
-    public static GranularCellSyncPayload delta(BlockPos pos, GranularCell cell, long[] previousOccupancy) {
+    public static GranularCellSyncPayload delta(
+            BlockPos pos,
+            GranularCell cell,
+            long[] previousOccupancy
+    ) {
         long[] current = cell.occupancy();
         int mask = 0;
         int count = 0;
@@ -79,7 +65,6 @@ public record GranularCellSyncPayload(
         int idx = 0;
         for (int i = 0; i < GranularCell.LONGS; i++) {
             if ((mask & (1 << i)) != 0) {
-                // If previous exists, we send the new word directly (sparse update)
                 changedWords[idx++] = current[i];
             }
         }
@@ -91,12 +76,13 @@ public record GranularCellSyncPayload(
                 cell.revision(),
                 true,
                 mask,
-                changedWords
+                changedWords,
+                cell.compositionUnits()
         );
     }
 
-    /** StreamCodec for network serialization. */
-    public static final StreamCodec<RegistryFriendlyByteBuf, GranularCellSyncPayload> CODEC = new StreamCodec<>() {
+    public static final StreamCodec<RegistryFriendlyByteBuf, GranularCellSyncPayload> CODEC =
+            new StreamCodec<>() {
         @Override
         public GranularCellSyncPayload decode(RegistryFriendlyByteBuf buf) {
             BlockPos pos = buf.readBlockPos();
@@ -112,7 +98,14 @@ public record GranularCellSyncPayload(
                 words[i] = buf.readLong();
             }
 
-            return new GranularCellSyncPayload(pos, materialId, unitCount, revision, isDelta, mask, words);
+            int compositionLength = buf.readVarInt();
+            int[] compositionUnits = new int[compositionLength];
+            for (int i = 0; i < compositionLength; i++) {
+                compositionUnits[i] = buf.readVarInt();
+            }
+
+            return new GranularCellSyncPayload(
+                    pos, materialId, unitCount, revision, isDelta, mask, words, compositionUnits);
         }
 
         @Override
@@ -125,6 +118,11 @@ public record GranularCellSyncPayload(
             buf.writeByte(p.changedWordMask);
             for (long word : p.words) {
                 buf.writeLong(word);
+            }
+
+            buf.writeVarInt(p.compositionUnits.length);
+            for (int units : p.compositionUnits) {
+                buf.writeVarInt(units);
             }
         }
     };

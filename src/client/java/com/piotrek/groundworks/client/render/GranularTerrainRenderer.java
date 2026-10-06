@@ -27,6 +27,8 @@ public final class GranularTerrainRenderer {
             Identifier.withDefaultNamespace("textures/block/sand.png");
     private static final Identifier GRAVEL_TEXTURE =
             Identifier.withDefaultNamespace("textures/block/gravel.png");
+    private static final Identifier COBBLESTONE_TEXTURE =
+            Identifier.withDefaultNamespace("textures/block/cobblestone.png");
 
     private GranularTerrainRenderer() {}
 
@@ -43,6 +45,7 @@ public final class GranularTerrainRenderer {
         submitMaterial(context, cells, camera, 1, DIRT_TEXTURE);
         submitMaterial(context, cells, camera, 2, SAND_TEXTURE);
         submitMaterial(context, cells, camera, 3, GRAVEL_TEXTURE);
+        submitMaterial(context, cells, camera, 4, COBBLESTONE_TEXTURE);
     }
 
     private static void submitMaterial(
@@ -61,7 +64,7 @@ public final class GranularTerrainRenderer {
                 (pose, consumer) -> {
                     for (var entry : cells.entrySet()) {
                         GranularCell cell = entry.getValue();
-                        if (cell.isEmpty() || cell.materialId() != materialId) continue;
+                        if (cell.isEmpty() || cell.unitsOfMaterial(materialId) <= 0) continue;
 
                         long packedPos = entry.getKey();
                         BlockPos pos = BlockPos.of(packedPos);
@@ -82,6 +85,7 @@ public final class GranularTerrainRenderer {
                         int packedLight = (skyLight << 20) | (blockLight << 4);
 
                         for (Quad quad : mesh.quads()) {
+                            if (visualMaterialForQuad(cell, pos, quad) != materialId) continue;
                             emitVertex(consumer, pose, quad.v0(), quad.n0(), relX, relY, relZ, packedLight);
                             emitVertex(consumer, pose, quad.v1(), quad.n1(), relX, relY, relZ, packedLight);
                             emitVertex(consumer, pose, quad.v2(), quad.n2(), relX, relY, relZ, packedLight);
@@ -90,6 +94,25 @@ public final class GranularTerrainRenderer {
                     }
                 }
         );
+    }
+
+    private static int visualMaterialForQuad(
+            GranularCell cell,
+            BlockPos pos,
+            Quad quad
+    ) {
+        float cx = (quad.v0().x + quad.v1().x + quad.v2().x + quad.v3().x) * 0.25f;
+        float cy = (quad.v0().y + quad.v1().y + quad.v2().y + quad.v3().y) * 0.25f;
+        float cz = (quad.v0().z + quad.v1().z + quad.v2().z + quad.v3().z) * 0.25f;
+
+        int mx = clampMicro((int) Math.floor(cx * GranularCell.RESOLUTION));
+        int my = clampMicro((int) Math.floor(cy * GranularCell.RESOLUTION));
+        int mz = clampMicro((int) Math.floor(cz * GranularCell.RESOLUTION));
+        return cell.visualMaterialId(pos.asLong(), mx, my, mz);
+    }
+
+    private static int clampMicro(int value) {
+        return Math.max(0, Math.min(GranularCell.RESOLUTION - 1, value));
     }
 
     private static void emitVertex(

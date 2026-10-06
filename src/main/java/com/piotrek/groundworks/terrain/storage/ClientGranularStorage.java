@@ -38,6 +38,9 @@ public final class ClientGranularStorage {
                 System.arraycopy(payload.words(), 0, cell.occupancy(), 0, GranularCell.LONGS);
             }
             cell.refreshUnitCount();
+            if (payload.compositionUnits().length > 0) {
+                cell.setCompositionUnits(payload.compositionUnits());
+            }
             cell.markDirty(DirtyFlags.MESH);
             CELLS.put(key, cell);
         } else {
@@ -52,6 +55,9 @@ public final class ClientGranularStorage {
                 }
             }
             cell.refreshUnitCount();
+            if (payload.compositionUnits().length > 0) {
+                cell.setCompositionUnits(payload.compositionUnits());
+            }
             cell.markDirty(DirtyFlags.MESH);
         }
 

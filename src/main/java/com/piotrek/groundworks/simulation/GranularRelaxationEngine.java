@@ -59,7 +59,7 @@ public final class GranularRelaxationEngine {
         if (above != null && !above.isEmpty()) return 0;
 
         float sourceSurface = surfaceHeight(pos, cell.unitCount());
-        float cardinalThreshold = computeReposeHeightSteps(cell.material());
+        float cardinalThreshold = computeReposeHeightSteps(cell);
         int start = directionStartIndex(level.getSeed(), pos, cell.revision());
 
         SurfaceReceiver steepest = null;
@@ -144,6 +144,13 @@ public final class GranularRelaxationEngine {
                 + material.cohesion() * 2.0f);
     }
 
+    static float computeReposeHeightSteps(GranularCell cell) {
+        if (cell == null || cell.isEmpty()) return 6.0f;
+        double radians = Math.toRadians(cell.effectiveAngleOfRepose());
+        return (float) (Math.tan(radians) * GranularCell.RESOLUTION
+                + cell.effectiveCohesion() * 2.0f);
+    }
+
     private static float surfaceHeight(BlockPos pos, int units) {
         return pos.getY() * GranularCell.RESOLUTION + units / UNITS_PER_HEIGHT_STEP;
     }
@@ -169,7 +176,6 @@ public final class GranularRelaxationEngine {
             BlockPos scanPos = new BlockPos(x, y, z);
             GranularCell granular = storage.getCell(scanPos);
             if (granular != null && !granular.isEmpty()) {
-                if (granular.materialId() != materialId) return null;
                 if (!granular.isFull()) {
                     return new SurfaceReceiver(
                             new Receiver(scanPos, granular, granular.unitCount()),
@@ -204,7 +210,6 @@ public final class GranularRelaxationEngine {
             BlockPos scanPos = new BlockPos(sourcePos.getX(), y, sourcePos.getZ());
             GranularCell granular = storage.getCell(scanPos);
             if (granular != null && !granular.isEmpty()) {
-                if (granular.materialId() != materialId) return null;
                 if (!granular.isFull()) return new Receiver(scanPos, granular, granular.unitCount());
 
                 BlockPos abovePos = scanPos.above();
@@ -232,7 +237,6 @@ public final class GranularRelaxationEngine {
         GranularCell existing = storage.getCell(pos);
         if (existing != null) {
             if (existing.isFull()) return null;
-            if (!existing.isEmpty() && existing.materialId() != materialId) return null;
             return new Receiver(pos, existing, existing.unitCount());
         }
 
@@ -263,8 +267,10 @@ public final class GranularRelaxationEngine {
             destination.setMaterialId(source.materialId());
         }
 
-        int removed = source.removeFromTop(amount);
-        int added = destination.addFromBottom(removed);
+        var movedComposition = source.extractCompositionFromTop(amount);
+        var acceptedComposition = destination.addCompositionFromBottom(movedComposition);
+        int removed = movedComposition.totalUnits();
+        int added = acceptedComposition.totalUnits();
         if (createdDestination && added > 0) {
             storage.putCell(receiver.pos(), destination);
         }

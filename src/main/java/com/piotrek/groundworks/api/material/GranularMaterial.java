@@ -19,6 +19,7 @@ import java.util.function.Supplier;
  * @param angleOfRepose     degrees (used in Stage 2 relaxation)
  * @param cohesion          0.0–1.0 (used in Stage 2 relaxation)
  * @param slideProbability 0.0–1.0 per tick (used in Stage 2 relaxation)
+ * @param visualClusterSizeMicrovoxels stable visual cluster size in the 8x8x8 cell grid
  */
 public record GranularMaterial(
         int id,
@@ -27,12 +28,29 @@ public record GranularMaterial(
         float density,
         float angleOfRepose,
         float cohesion,
-        float slideProbability
+        float slideProbability,
+        int visualClusterSizeMicrovoxels
 ) {
+
+    /**
+     * Backward-compatible constructor for external material registrations.
+     * Fine materials default to one-microvoxel visual sampling.
+     */
+    public GranularMaterial(
+            int id,
+            String name,
+            Supplier<Block> blockSupplier,
+            float density,
+            float angleOfRepose,
+            float cohesion,
+            float slideProbability
+    ) {
+        this(id, name, blockSupplier, density, angleOfRepose, cohesion, slideProbability, 1);
+    }
 
     /** The empty/air material. No real block. */
     public static final GranularMaterial EMPTY = new GranularMaterial(
-            0, "empty", () -> null, 0f, 0f, 0f, 0f
+            0, "empty", () -> null, 0f, 0f, 0f, 0f, 1
     );
 
     public Block sourceBlock() {

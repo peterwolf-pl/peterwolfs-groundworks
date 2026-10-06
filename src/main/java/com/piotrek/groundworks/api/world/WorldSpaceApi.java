@@ -180,18 +180,18 @@ public final class WorldSpaceApi {
             }
 
             BlockPos pos = candidate.pos();
-            GranularMaterial candidateMaterial = getMaterial(level, pos);
-            if (candidateMaterial == null || candidateMaterial.id() == 0) {
-                continue;
-            }
-            if (selectedMaterial != null && selectedMaterial.id() != candidateMaterial.id()) {
-                continue;
-            }
-
             GranularCell cell = cellCache.get(pos.asLong());
             if (cell == null) {
                 cell = storage.getCell(pos);
                 if (cell == null) {
+                    GranularMaterial candidateMaterial = getMaterial(level, pos);
+                    if (candidateMaterial == null || candidateMaterial.id() == 0) {
+                        continue;
+                    }
+                    if (selectedMaterial != null
+                            && selectedMaterial.id() != candidateMaterial.id()) {
+                        continue;
+                    }
                     cell = storage.getOrConvert(pos);
                 }
                 if (cell == null || cell.isEmpty()) {
@@ -207,11 +207,12 @@ public final class WorldSpaceApi {
             if (selectedMaterial == null) {
                 selectedMaterial = cell.material();
             }
-            if (cell.materialId() != selectedMaterial.id()) {
+            if (cell.unitsOfMaterial(selectedMaterial.id()) <= 0) {
                 continue;
             }
 
-            if (cell.clear(candidate.x(), candidate.y(), candidate.z())) {
+            if (cell.clearMaterial(
+                    candidate.x(), candidate.y(), candidate.z(), selectedMaterial.id())) {
                 removed++;
                 changed.add(pos.immutable());
             }
@@ -267,11 +268,6 @@ public final class WorldSpaceApi {
         }
 
         GranularMaterial required = normalizeRequiredMaterial(requiredMaterial);
-        GranularMaterial candidateMaterial = getMaterial(level, pos);
-        if (required != null
-                && (candidateMaterial == null || candidateMaterial.id() != required.id())) {
-            return ExcavationResult.NONE;
-        }
 
         GranularWorldStorage storage = GranularWorldStorage.get(level);
         GranularCell cell = storage.getOrConvert(pos);
@@ -279,8 +275,10 @@ public final class WorldSpaceApi {
             return ExcavationResult.NONE;
         }
 
-        GranularMaterial material = cell.material();
-        if (required != null && material.id() != required.id()) {
+        GranularMaterial material = required != null ? required : cell.material();
+        if (material == null
+                || material.id() == 0
+                || cell.unitsOfMaterial(material.id()) <= 0) {
             return ExcavationResult.NONE;
         }
 
@@ -289,7 +287,7 @@ public final class WorldSpaceApi {
         for (int y = GranularCell.RESOLUTION - 1; y >= startY && removed < maxUnits; y--) {
             for (int z = 0; z < GranularCell.RESOLUTION && removed < maxUnits; z++) {
                 for (int x = 0; x < GranularCell.RESOLUTION && removed < maxUnits; x++) {
-                    if (cell.clear(x, y, z)) {
+                    if (cell.clearMaterial(x, y, z, material.id())) {
                         removed++;
                     }
                 }
@@ -341,9 +339,6 @@ public final class WorldSpaceApi {
             }
             freeBelowGrade = fullLayers * GranularCell.RESOLUTION * GranularCell.RESOLUTION;
         } else {
-            if (!cell.isEmpty() && cell.materialId() != material.id()) {
-                return new DepositResult(material, 0, availableUnits, List.of());
-            }
             freeBelowGrade = countEmptyBelow(cell, fullLayers);
         }
 
