@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class GranularRelaxationEngine {
 
     public static final int MAX_TRANSFER_PER_STEP = 32;
+    static final int MAX_VERTICAL_TRANSFER_PER_STEP = GranularCell.TOTAL_UNITS;
     private static final int RECEIVER_SEARCH_DEPTH = 32;
     private static final float UNITS_PER_HEIGHT_STEP =
             (float) GranularCell.TOTAL_UNITS / GranularCell.RESOLUTION;
@@ -39,7 +40,16 @@ public final class GranularRelaxationEngine {
         // bucket dump; visual stream particles remain independent of unit transfer.
         Receiver below = findVerticalReceiver(storage, level, pos, cell.materialId());
         if (below != null) {
-            int moved = transfer(storage, pos, cell, below, cell.unitCount());
+            // Vertical compaction is structural, not surface relaxation. Fill the
+            // receiving cell in one pass so material cannot remain suspended above
+            // a partially filled cell and expose an internal void in a tall pile.
+            int moved = transfer(
+                    storage,
+                    pos,
+                    cell,
+                    below,
+                    cell.unitCount(),
+                    MAX_VERTICAL_TRANSFER_PER_STEP);
             if (moved > 0) return moved;
         }
 
@@ -79,7 +89,13 @@ public final class GranularRelaxationEngine {
         // without a reverse transfer; the cap keeps formation progressive.
         int requested = Math.max(1, Math.min(MAX_TRANSFER_PER_STEP,
                 (int) Math.ceil(steepestExcess * UNITS_PER_HEIGHT_STEP * 0.5f)));
-        return transfer(storage, pos, cell, steepest.receiver(), requested);
+        return transfer(
+                storage,
+                pos,
+                cell,
+                steepest.receiver(),
+                requested,
+                MAX_TRANSFER_PER_STEP);
     }
 
     /** Stable equalization helper retained for unit-level transfer tests. */
@@ -87,6 +103,25 @@ public final class GranularRelaxationEngine {
         int excess = sourceUnits - receiverUnits - threshold;
         if (excess <= 0) return 0;
         return Math.min(MAX_TRANSFER_PER_STEP, Math.max(1, (excess + 1) / 2));
+    }
+
+    /**
+     * Compute a bounded transfer amount without mutating either cell.
+     *
+     * <p>Vertical compaction uses a one-cell cap (512 units), while lateral
+     * angle-of-repose relaxation keeps the progressive 32-unit cap.
+     */
+    static int computeTransferAmount(
+            int sourceUnits,
+            int receiverUnits,
+            int requested,
+            int maxTransfer
+    ) {
+        if (sourceUnits <= 0 || requested <= 0 || maxTransfer <= 0) return 0;
+
+        int capacity = Math.max(0, GranularCell.TOTAL_UNITS - receiverUnits);
+        return Math.min(maxTransfer,
+                Math.min(requested, Math.min(sourceUnits, capacity)));
     }
 
     /** Deterministic tie-break start for the eight-neighbor ring. */
@@ -208,13 +243,16 @@ public final class GranularRelaxationEngine {
             BlockPos sourcePos,
             GranularCell source,
             Receiver receiver,
-            int requested
+            int requested,
+            int maxTransfer
     ) {
         if (requested <= 0 || source.isEmpty()) return 0;
 
-        int capacity = GranularCell.TOTAL_UNITS - receiver.units();
-        int amount = Math.min(MAX_TRANSFER_PER_STEP,
-                Math.min(requested, Math.min(source.unitCount(), capacity)));
+        int amount = computeTransferAmount(
+                source.unitCount(),
+                receiver.units(),
+                requested,
+                maxTransfer);
         if (amount <= 0) return 0;
 
         GranularCell destination = receiver.cell();
