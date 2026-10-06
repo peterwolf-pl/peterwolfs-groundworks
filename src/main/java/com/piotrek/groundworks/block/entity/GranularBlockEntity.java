@@ -82,6 +82,7 @@ public class GranularBlockEntity extends BlockEntity {
             GranularCell loaded = GranularCell.load(tag);
             if (loaded != null) {
                 this.cell = loaded;
+                this.materialId = loaded.materialId();
                 ClientGranularStorage.putCell(this.worldPosition, loaded);
             }
         });
