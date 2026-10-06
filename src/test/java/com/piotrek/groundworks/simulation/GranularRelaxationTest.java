@@ -146,4 +146,80 @@ class GranularRelaxationTest {
             assertTrue(slope.validate());
         }
     }
+
+    @Test
+    @DisplayName("Vertical compaction fills the lower cell before leaving material above")
+    void testVerticalCompactionFillsLowerCell() {
+        GranularCell lower = cellWithUnits(GranularMaterialRegistry.DIRT, 400);
+        GranularCell upper = cellWithUnits(GranularMaterialRegistry.DIRT, 300);
+        int initialTotal = lower.unitCount() + upper.unitCount();
+
+        int moved = GranularRelaxationEngine.computeTransferAmount(
+                upper.unitCount(),
+                lower.unitCount(),
+                upper.unitCount(),
+                GranularRelaxationEngine.MAX_VERTICAL_TRANSFER_PER_STEP);
+
+        int removed = upper.removeFromTop(moved);
+        int added = lower.addFromBottom(removed);
+
+        assertEquals(112, moved);
+        assertEquals(removed, added);
+        assertEquals(512, lower.unitCount());
+        assertEquals(188, upper.unitCount());
+        assertEquals(initialTotal, lower.unitCount() + upper.unitCount());
+    }
+
+    @Test
+    @DisplayName("Vertical compaction can move more than the lateral 32-unit budget")
+    void testVerticalCompactionBypassesLateralCap() {
+        GranularCell lower = cellWithUnits(GranularMaterialRegistry.SAND, 100);
+        GranularCell upper = cellWithUnits(GranularMaterialRegistry.SAND, 512);
+        int initialTotal = lower.unitCount() + upper.unitCount();
+
+        int moved = GranularRelaxationEngine.computeTransferAmount(
+                upper.unitCount(),
+                lower.unitCount(),
+                upper.unitCount(),
+                GranularRelaxationEngine.MAX_VERTICAL_TRANSFER_PER_STEP);
+
+        int removed = upper.removeFromTop(moved);
+        int added = lower.addFromBottom(removed);
+
+        assertEquals(412, moved);
+        assertTrue(moved > GranularRelaxationEngine.MAX_TRANSFER_PER_STEP);
+        assertEquals(removed, added);
+        assertEquals(512, lower.unitCount());
+        assertEquals(100, upper.unitCount());
+        assertEquals(initialTotal, lower.unitCount() + upper.unitCount());
+    }
+
+    @Test
+    @DisplayName("A full lower cell rejects vertical compaction")
+    void testVerticalCompactionStopsAtFullCell() {
+        assertEquals(0, GranularRelaxationEngine.computeTransferAmount(
+                200,
+                GranularCell.TOTAL_UNITS,
+                200,
+                GranularRelaxationEngine.MAX_VERTICAL_TRANSFER_PER_STEP));
+    }
+
+    @Test
+    @DisplayName("Lateral transfer remains capped at 32 units")
+    void testGenericTransferKeepsLateralCap() {
+        assertEquals(GranularRelaxationEngine.MAX_TRANSFER_PER_STEP,
+                GranularRelaxationEngine.computeTransferAmount(
+                        GranularCell.TOTAL_UNITS,
+                        0,
+                        GranularCell.TOTAL_UNITS,
+                        GranularRelaxationEngine.MAX_TRANSFER_PER_STEP));
+    }
+
+    private static GranularCell cellWithUnits(GranularMaterial material, int units) {
+        GranularCell cell = GranularCell.empty();
+        cell.setMaterialId(material.id());
+        cell.addFromBottom(units);
+        return cell;
+    }
+
 }
