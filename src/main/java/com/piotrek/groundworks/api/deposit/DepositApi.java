@@ -34,7 +34,7 @@ public final class DepositApi {
             if (state.isAir()) {
                 cell = GranularCell.empty();
                 cell.setMaterialId(material.id());
-                int added = cell.addFromBottom(units);
+                int added = cell.addMaterialFromBottom(material, units);
                 if (added > 0) {
                     storage.putCell(pos, cell);
 
@@ -69,15 +69,11 @@ public final class DepositApi {
             }
         }
 
-        if (!cell.isEmpty() && cell.materialId() != material.id()) {
-            return new DepositResult(material, 0, units, List.of());
-        }
-
         if (cell.isEmpty()) {
             cell.setMaterialId(material.id());
         }
 
-        int added = cell.addFromBottom(units);
+        int added = cell.addMaterialFromBottom(material, units);
         if (added > 0) {
             cell.markDirty(DirtyFlags.ALL);
             storage.enqueueDirty(pos);
@@ -85,6 +81,7 @@ public final class DepositApi {
 
             BlockEntity be = level.getBlockEntity(pos);
             if (be instanceof GranularBlockEntity gbe) {
+                gbe.setMaterialId(cell.materialId());
                 gbe.setCell(cell);
                 gbe.setChanged();
                 level.sendBlockUpdated(pos, be.getBlockState(), be.getBlockState(), Block.UPDATE_ALL_IMMEDIATE);
