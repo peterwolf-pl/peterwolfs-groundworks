@@ -41,6 +41,7 @@ public final class GranularMeshCache {
             }
         }
         CACHE.remove(changedPos.below().asLong());
+        CACHE.remove(changedPos.above().asLong());
     }
 
     static boolean isCached(long packedPos) {

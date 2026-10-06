@@ -110,16 +110,20 @@ public final class GranularSurfaceMesher {
                 float sideH11 = sideHeight(columnHeight, h11, coveredFromAbove);
                 float sideH10 = sideHeight(columnHeight, h10, coveredFromAbove);
 
-                if (sampleColumnHeight(pos, x, z - 1, lookup) <= 0.0f) {
+                float neighborZNeg = sampleColumnHeight(pos, x, z - 1, lookup);
+                if (neighborZNeg <= 0.0f || (coveredFromAbove && neighborZNeg < 1.0f)) {
                     quads.add(sideQuad(x1, sideH10, x0, sideH00, z0, 0, 0, -1));
                 }
-                if (sampleColumnHeight(pos, x, z + 1, lookup) <= 0.0f) {
+                float neighborZPos = sampleColumnHeight(pos, x, z + 1, lookup);
+                if (neighborZPos <= 0.0f || (coveredFromAbove && neighborZPos < 1.0f)) {
                     quads.add(sideQuad(x0, sideH01, x1, sideH11, z1, 0, 0, 1));
                 }
-                if (sampleColumnHeight(pos, x - 1, z, lookup) <= 0.0f) {
+                float neighborXNeg = sampleColumnHeight(pos, x - 1, z, lookup);
+                if (neighborXNeg <= 0.0f || (coveredFromAbove && neighborXNeg < 1.0f)) {
                     quads.add(sideQuadZ(z0, sideH00, z1, sideH01, x0, -1, 0, 0));
                 }
-                if (sampleColumnHeight(pos, x + 1, z, lookup) <= 0.0f) {
+                float neighborXPos = sampleColumnHeight(pos, x + 1, z, lookup);
+                if (neighborXPos <= 0.0f || (coveredFromAbove && neighborXPos < 1.0f)) {
                     quads.add(sideQuadZ(z1, sideH11, z0, sideH10, x1, 1, 0, 0));
                 }
             }

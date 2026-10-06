@@ -28,6 +28,16 @@ public final class GranularSyncHandler {
     }
 
     /**
+     * Notify tracking clients that a cell has been removed (or solidified into vanilla).
+     */
+    public static void sendCellRemoval(ServerLevel level, BlockPos pos) {
+        GranularCellSyncPayload payload = GranularCellSyncPayload.remove(pos);
+        for (ServerPlayer player : PlayerLookup.tracking(level, pos)) {
+            ServerPlayNetworking.send(player, payload);
+        }
+    }
+
+    /**
      * Send full resync for a specific player (e.g. upon entering view distance).
      */
     public static void sendFullResync(ServerPlayer player, BlockPos pos, GranularCell cell) {

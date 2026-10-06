@@ -221,6 +221,11 @@ public class GranularWorldStorage extends SavedData {
                 continue;
             }
 
+            if (level != null && BlockConverter.canSolidify(level, this, pos, cell)) {
+                BlockConverter.solidify(level, this, pos, cell);
+                continue;
+            }
+
             // OCCUPANCY/MATERIAL/MESH describe the change already synchronized
             // above. Preserve only a newly requested simulation pass.
             cell.clearDirtyFlag(DirtyFlags.OCCUPANCY | DirtyFlags.MATERIAL | DirtyFlags.MESH);

@@ -92,6 +92,10 @@ public final class DepositApi {
 
             // Immediate client sync
             GranularSyncHandler.sendCellUpdate(level, pos, cell);
+
+            if (cell.isFull() && BlockConverter.canSolidify(level, storage, pos, cell)) {
+                BlockConverter.solidify(level, storage, pos, cell);
+            }
         }
 
         return new DepositResult(material, added, units - added,
@@ -116,6 +120,14 @@ public final class DepositApi {
 
             if (remaining > 0) {
                 current = current.above();
+            }
+        }
+
+        GranularWorldStorage storage = GranularWorldStorage.get(level);
+        for (BlockPos affectedPos : affected) {
+            GranularCell affectedCell = storage.getCell(affectedPos);
+            if (affectedCell != null && BlockConverter.canSolidify(level, storage, affectedPos, affectedCell)) {
+                BlockConverter.solidify(level, storage, affectedPos, affectedCell);
             }
         }
 

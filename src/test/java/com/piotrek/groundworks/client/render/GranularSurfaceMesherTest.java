@@ -92,6 +92,32 @@ class GranularSurfaceMesherTest {
     }
 
     @Test
+    @DisplayName("Buried cell generates vertical perimeter walls even when adjacent neighbor has a partial slope")
+    void testBuriedCellKeepsPerimeterWallsAdjacentToPartialSlope() {
+        BlockPos lowerPos = BlockPos.ZERO;
+        BlockPos upperPos = lowerPos.above();
+        BlockPos eastPos = lowerPos.east();
+
+        GranularCell lower = GranularCell.full(GranularMaterialRegistry.DIRT);
+        GranularCell upper = GranularCell.full(GranularMaterialRegistry.DIRT);
+        GranularCell eastSlope = GranularCell.empty();
+        eastSlope.setMaterialId(GranularMaterialRegistry.DIRT.id());
+        eastSlope.addFromBottom(256); // Half-height slope next to the buried cell
+
+        Map<BlockPos, GranularCell> cells = new HashMap<>();
+        cells.put(lowerPos, lower);
+        cells.put(upperPos, upper);
+        cells.put(eastPos, eastSlope);
+
+        CellMesh lowerMesh = GranularSurfaceMesher.generateMesh(lowerPos, lower, cells::get);
+
+        // All 32 perimeter skirts must remain present, including the 8 east-facing skirts
+        // bordering the half-height slope, closing the vertical gap up to the upper block boundary.
+        assertEquals(32, lowerMesh.quads().size());
+        assertFalse(lowerMesh.isEmpty());
+    }
+
+    @Test
     @DisplayName("Neighboring cells calculate identical shared-border heights")
     void testSharedBorderContinuity() {
         BlockPos leftPos = BlockPos.ZERO;

@@ -4,7 +4,10 @@ import com.piotrek.groundworks.GroundworksMod;
 import com.piotrek.groundworks.api.material.GranularMaterial;
 import com.piotrek.groundworks.api.material.GranularMaterialRegistry;
 import com.piotrek.groundworks.block.entity.GranularBlockEntity;
+import com.piotrek.groundworks.networking.GranularSyncHandler;
+import com.piotrek.groundworks.terrain.cell.DirtyFlags;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
+import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
@@ -13,7 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Converts vanilla blocks into granular cells.
+ * Converts vanilla blocks into granular cells and solidifies full buried cells back.
  */
 public final class BlockConverter {
 
@@ -54,5 +57,80 @@ public final class BlockConverter {
 
     public static boolean isConvertible(BlockState state) {
         return GranularMaterialRegistry.forBlockState(state) != null;
+    }
+
+    /**
+     * Checks whether a full granular cell can be solidified back into a vanilla block.
+     * A cell can solidify when it is 100% full (512 units) and buried inside terrain or a pile:
+     * - either it has granular material of the same type above it,
+     * - or it has a solid vanilla block above it.
+     */
+    public static boolean canSolidify(
+            @Nullable ServerLevel level,
+            @Nullable GranularCell aboveCell,
+            BlockPos pos,
+            GranularCell cell
+    ) {
+        if (!cell.isFull()) return false;
+        GranularMaterial material = cell.material();
+        if (material == null || material == GranularMaterial.EMPTY || material.sourceBlock() == null) {
+            return false;
+        }
+
+        if (aboveCell != null && !aboveCell.isEmpty()) {
+            return aboveCell.materialId() == cell.materialId();
+        }
+
+        if (level == null) return false;
+        BlockState aboveState = level.getBlockState(pos.above());
+        return aboveState.isSolid() && !aboveState.is(GroundworksMod.GRANULAR_BLOCK);
+    }
+
+    public static boolean canSolidify(
+            @Nullable ServerLevel level,
+            GranularWorldStorage storage,
+            BlockPos pos,
+            GranularCell cell
+    ) {
+        GranularCell aboveCell = storage.getCell(pos.above());
+        return canSolidify(level, aboveCell, pos, cell);
+    }
+
+    /**
+     * Converts a full granular cell back into its corresponding solid vanilla block.
+     * Replaces GranularBlock with the vanilla block in the world and removes it from storage.
+     */
+    public static boolean solidify(
+            ServerLevel level,
+            GranularWorldStorage storage,
+            BlockPos pos,
+            GranularCell cell
+    ) {
+        if (!canSolidify(level, storage, pos, cell)) return false;
+
+        GranularMaterial material = cell.material();
+        Block solidBlock = material.sourceBlock();
+
+        // 1. Remove from granular storage
+        storage.removeCell(pos);
+
+        // 2. Replace anchor block with vanilla block
+        level.setBlock(pos, solidBlock.defaultBlockState(), Block.UPDATE_ALL_IMMEDIATE);
+
+        // 3. Notify clients to remove cell from client storage & mesh cache
+        GranularSyncHandler.sendCellRemoval(level, pos);
+
+        // 4. Wake cell above if present so it rests on solid ground
+        BlockPos abovePos = pos.above();
+        GranularCell above = storage.getCell(abovePos);
+        if (above != null && !above.isEmpty()) {
+            above.markDirty(DirtyFlags.SIMULATE | DirtyFlags.SYNC | DirtyFlags.MESH);
+            storage.enqueueDirty(abovePos);
+        }
+
+        GroundworksMod.LOGGER.info(
+                "[Groundworks] Solidified full cell at {} back to vanilla {} ({} units)",
+                pos, solidBlock.getName().getString(), cell.unitCount());
+        return true;
     }
 }

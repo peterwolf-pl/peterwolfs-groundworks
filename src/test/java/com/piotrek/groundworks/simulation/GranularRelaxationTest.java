@@ -3,6 +3,7 @@ package com.piotrek.groundworks.simulation;
 import com.piotrek.groundworks.api.material.GranularMaterial;
 import com.piotrek.groundworks.api.material.GranularMaterialRegistry;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
+import com.piotrek.groundworks.terrain.conversion.BlockConverter;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import net.minecraft.core.BlockPos;
@@ -213,6 +214,35 @@ class GranularRelaxationTest {
                         0,
                         GranularCell.TOTAL_UNITS,
                         GranularRelaxationEngine.MAX_TRANSFER_PER_STEP));
+    }
+
+    @Test
+    @DisplayName("A full cell can solidify when buried under matching granular material")
+    void testFullCellCanSolidifyWhenBuried() {
+        GranularCell lower = GranularCell.full(GranularMaterialRegistry.DIRT);
+        GranularCell upper = cellWithUnits(GranularMaterialRegistry.DIRT, 100);
+
+        assertTrue(BlockConverter.canSolidify(null, upper, BlockPos.ZERO, lower),
+                "Full cell buried under granular material must be eligible for solidification");
+    }
+
+    @Test
+    @DisplayName("A full cell with air above cannot solidify so it can relax laterally")
+    void testFullCellAtSurfaceDoesNotSolidify() {
+        GranularCell surface = GranularCell.full(GranularMaterialRegistry.DIRT);
+
+        assertFalse(BlockConverter.canSolidify(null, (GranularCell) null, BlockPos.ZERO, surface),
+                "Surface cell with no material above must not solidify before relaxation");
+    }
+
+    @Test
+    @DisplayName("A partially filled cell cannot solidify even when covered from above")
+    void testPartialCellCannotSolidify() {
+        GranularCell lower = cellWithUnits(GranularMaterialRegistry.DIRT, 400);
+        GranularCell upper = cellWithUnits(GranularMaterialRegistry.DIRT, 100);
+
+        assertFalse(BlockConverter.canSolidify(null, upper, BlockPos.ZERO, lower),
+                "Non-full cell must not solidify");
     }
 
     private static GranularCell cellWithUnits(GranularMaterial material, int units) {

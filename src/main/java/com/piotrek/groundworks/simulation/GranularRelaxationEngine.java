@@ -3,6 +3,7 @@ package com.piotrek.groundworks.simulation;
 import com.piotrek.groundworks.api.material.GranularMaterial;
 import com.piotrek.groundworks.terrain.cell.DirtyFlags;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
+import com.piotrek.groundworks.terrain.conversion.BlockConverter;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -276,6 +277,11 @@ public final class GranularRelaxationEngine {
         destination.markDirty(DirtyFlags.ALL);
         storage.enqueueDirty(sourcePos);
         storage.enqueueDirty(receiver.pos());
+
+        if (storage.getLevel() != null && destination.isFull()
+                && BlockConverter.canSolidify(storage.getLevel(), storage, receiver.pos(), destination)) {
+            BlockConverter.solidify(storage.getLevel(), storage, receiver.pos(), destination);
+        }
 
         // When the top cell drains, explicitly wake the newly exposed cell.
         // Queueing a clean cell alone is insufficient because storage ticks only
