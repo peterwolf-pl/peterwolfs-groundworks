@@ -100,19 +100,28 @@ public final class GranularCell {
     }
 
     /**
-     * Clear one microvoxel. Composition is consumed from the dominant material,
-     * which preserves the single-material contract of legacy excavation calls.
+     * Clear one microvoxel from the current dominant material.
      */
     public boolean clear(int x, int y, int z) {
+        int selectedMaterial = materialId > 0 ? materialId : composition.dominantMaterialId();
+        return clearMaterial(x, y, z, selectedMaterial);
+    }
+
+    /**
+     * Clear one occupied microvoxel while consuming a specific composition
+     * component. Geometry and composition are intentionally decoupled, so this
+     * lets a legacy single-material excavation keep removing the material it
+     * selected at the start even if another component becomes dominant midway.
+     */
+    public boolean clearMaterial(int x, int y, int z, int selectedMaterialId) {
+        if (selectedMaterialId <= 0 || composition.unitsOf(selectedMaterialId) <= 0) return false;
+
         int idx = index(x, y, z);
         int word = idx >> 6;
         long bit = 1L << (idx & 63);
         if ((occupancy[word] & bit) == 0) return false;
 
-        int removedMaterial = materialId > 0 ? materialId : composition.dominantMaterialId();
-        if (removedMaterial <= 0 || composition.remove(removedMaterial, 1) != 1) {
-            return false;
-        }
+        if (composition.remove(selectedMaterialId, 1) != 1) return false;
 
         occupancy[word] &= ~bit;
         unitCount--;
