@@ -159,6 +159,26 @@ class GranularCellTest {
     }
 
     @Test
+    @DisplayName("Selected component excavation does not stop when dominant material changes")
+    void testSelectedComponentExcavationAcrossDominanceChange() {
+        GranularCell cell = GranularCell.empty();
+        cell.setMaterialId(GranularMaterialRegistry.DIRT.id());
+        cell.addMaterialFromBottom(GranularMaterialRegistry.DIRT, 205);
+        cell.addMaterialFromBottom(GranularMaterialRegistry.GRAVEL, 205);
+        cell.addMaterialFromBottom(GranularMaterialRegistry.SAND, 102);
+
+        int removed = cell.removeMaterialFromTop(GranularMaterialRegistry.DIRT.id(), 128);
+
+        assertEquals(128, removed);
+        assertEquals(77, cell.unitsOfMaterial(GranularMaterialRegistry.DIRT.id()));
+        assertEquals(205, cell.unitsOfMaterial(GranularMaterialRegistry.GRAVEL.id()));
+        assertEquals(102, cell.unitsOfMaterial(GranularMaterialRegistry.SAND.id()));
+        assertEquals(384, cell.unitCount());
+        assertTrue(cell.validate());
+        assertEquals(GranularMaterialRegistry.GRAVEL.id(), cell.materialId());
+    }
+
+    @Test
     @DisplayName("Strict volume conservation: excavated units plus remaining units equal 512")
     void testVolumeConservationLaw() {
         GranularCell cell = GranularCell.full(GranularMaterialRegistry.GRAVEL);
