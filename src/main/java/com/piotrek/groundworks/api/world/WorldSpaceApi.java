@@ -286,9 +286,13 @@ public final class WorldSpaceApi {
 
         int removed = 0;
 
+        excavation:
         for (int y = GranularCell.RESOLUTION - 1; y >= startY && removed < maxUnits; y--) {
             for (int z = 0; z < GranularCell.RESOLUTION && removed < maxUnits; z++) {
                 for (int x = 0; x < GranularCell.RESOLUTION && removed < maxUnits; x++) {
+                    if (cell.materialId() != material.id()) {
+                        break excavation;
+                    }
                     if (cell.clear(x, y, z)) {
                         removed++;
                     }
