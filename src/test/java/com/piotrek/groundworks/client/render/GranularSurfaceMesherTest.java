@@ -58,6 +58,39 @@ class GranularSurfaceMesherTest {
         assertEquals(96, mesh.quads().size());
     }
 
+
+    @Test
+    @DisplayName("Buried full cell keeps exposed perimeter walls in a multi-block pile")
+    void testBuriedCellKeepsExposedPerimeterWalls() {
+        BlockPos lowerPos = BlockPos.ZERO;
+        BlockPos upperPos = lowerPos.above();
+
+        GranularCell lower = GranularCell.full(GranularMaterialRegistry.DIRT);
+        GranularCell upper = GranularCell.full(GranularMaterialRegistry.DIRT);
+
+        Map<BlockPos, GranularCell> cells = new HashMap<>();
+        cells.put(lowerPos, lower);
+        cells.put(upperPos, upper);
+
+        CellMesh lowerMesh = GranularSurfaceMesher.generateMesh(lowerPos, lower, cells::get);
+
+        // The 64 top quads are hidden by the cell above, but the 32 perimeter
+        // skirts must remain. The old code returned an empty mesh here, making
+        // the lower tier of any pile taller than one block appear transparent.
+        assertEquals(32, lowerMesh.quads().size());
+        assertFalse(lowerMesh.isEmpty());
+
+        lowerMesh.quads().forEach(quad -> {
+            assertEquals(0.0f, quad.n0().y, 0.0001f,
+                    "Buried lower-cell geometry should contain only vertical walls");
+            float maxY = Math.max(
+                    Math.max(quad.v0().y, quad.v1().y),
+                    Math.max(quad.v2().y, quad.v3().y));
+            assertEquals(1.0f, maxY, 0.0001f,
+                    "Buried full-cell wall must reach the upper block boundary without a gap");
+        });
+    }
+
     @Test
     @DisplayName("Neighboring cells calculate identical shared-border heights")
     void testSharedBorderContinuity() {
