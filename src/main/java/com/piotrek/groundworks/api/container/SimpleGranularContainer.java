@@ -1,25 +1,26 @@
 package com.piotrek.groundworks.api.container;
 
+import com.piotrek.groundworks.api.material.GranularComposition;
 import com.piotrek.groundworks.api.material.GranularMaterial;
-import com.piotrek.groundworks.api.material.GranularMaterialRegistry;
 
 /**
- * Standard in-memory implementation of {@link IGranularContainer} for machinery components
- * (wheelbarrows, excavator buckets, dump truck beds, hopper buffers).
+ * Standard mixture-aware in-memory implementation for machinery components.
+ *
+ * <p>Legacy callers remain safe: storedMaterial() exposes the current dominant
+ * component and extractMaterial() removes only that component. A caller that
+ * reads storedMaterial(), extracts units, and deposits that material therefore
+ * preserves per-material mass even without using the new composition API.</p>
  */
 public class SimpleGranularContainer implements IGranularContainer {
 
     private final int capacity;
-    private int storedUnits;
-    private GranularMaterial storedMaterial;
+    private final GranularComposition composition = new GranularComposition();
 
     public SimpleGranularContainer(int capacity) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("Capacity must be positive");
         }
         this.capacity = capacity;
-        this.storedUnits = 0;
-        this.storedMaterial = GranularMaterial.EMPTY;
     }
 
     @Override
@@ -29,45 +30,56 @@ public class SimpleGranularContainer implements IGranularContainer {
 
     @Override
     public int storedUnits() {
-        return storedUnits;
+        return composition.totalUnits();
     }
 
     @Override
     public GranularMaterial storedMaterial() {
-        return storedMaterial;
+        int id = composition.dominantMaterialId();
+        return id <= 0
+                ? GranularMaterial.EMPTY
+                : com.piotrek.groundworks.api.material.GranularMaterialRegistry.byId(id);
+    }
+
+    @Override
+    public GranularComposition storedComposition() {
+        return composition.copy();
     }
 
     @Override
     public int acceptMaterial(GranularMaterial material, int units) {
         if (units <= 0 || material == null || material == GranularMaterial.EMPTY) return 0;
 
-        // If not empty, cannot mix different materials
-        if (storedUnits > 0 && storedMaterial.id() != material.id()) {
-            return 0;
-        }
-
-        int available = capacity - storedUnits;
+        int available = capacity - storedUnits();
         int toAdd = Math.min(units, available);
-
         if (toAdd > 0) {
-            this.storedMaterial = material;
-            this.storedUnits += toAdd;
+            composition.add(material, toAdd);
         }
-
         return toAdd;
     }
 
     @Override
-    public int extractMaterial(int maxUnits) {
-        if (maxUnits <= 0 || storedUnits <= 0) return 0;
+    public int acceptComposition(GranularComposition incoming) {
+        if (incoming == null || incoming.isEmpty() || !hasRoom()) return 0;
 
-        int toExtract = Math.min(maxUnits, storedUnits);
-        storedUnits -= toExtract;
-
-        if (storedUnits <= 0) {
-            storedMaterial = GranularMaterial.EMPTY;
+        int available = capacity - storedUnits();
+        GranularComposition accepted = incoming.copy();
+        if (accepted.totalUnits() > available) {
+            accepted = accepted.extractProportional(available);
         }
+        composition.addAll(accepted);
+        return accepted.totalUnits();
+    }
 
-        return toExtract;
+    @Override
+    public int extractMaterial(int maxUnits) {
+        if (maxUnits <= 0 || composition.isEmpty()) return 0;
+        int selected = composition.dominantMaterialId();
+        return composition.remove(selected, maxUnits);
+    }
+
+    @Override
+    public GranularComposition extractComposition(int maxUnits) {
+        return composition.extractProportional(maxUnits);
     }
 }
