@@ -1,7 +1,5 @@
 package com.piotrek.groundworks.api.material;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -25,11 +23,12 @@ public final class GranularMaterialRegistry {
     public static GranularMaterial DIRT;
     public static GranularMaterial SAND;
     public static GranularMaterial GRAVEL;
+    public static GranularMaterial COBBLESTONE;
 
     private GranularMaterialRegistry() {}
 
     /**
-     * Register the Stage 1 materials: dirt, sand, gravel.
+     * Register the built-in Groundworks materials.
      * Called once from mod init.
      */
     public static void bootstrap() {
@@ -51,6 +50,10 @@ public final class GranularMaterialRegistry {
                 3, "gravel", () -> Blocks.GRAVEL,
                 1800f, 38f, 0.2f, 0.4f
         ));
+        COBBLESTONE = register(new GranularMaterial(
+                4, "cobblestone", () -> Blocks.COBBLESTONE,
+                2200f, 42f, 0.35f, 0.2f
+        ));
     }
 
     private static GranularMaterial register(GranularMaterial material) {
@@ -69,6 +72,11 @@ public final class GranularMaterialRegistry {
 
     @Nullable
     public static GranularMaterial forBlockState(BlockState state) {
+        // Stone is crushed into loose cobblestone instead of producing a dropped item.
+        if (COBBLESTONE != null && state.is(Blocks.STONE)) {
+            return COBBLESTONE;
+        }
+
         for (int i = 1; i < BY_ID.size(); i++) {
             if (BY_ID.get(i).matchesBlock(state)) {
                 return BY_ID.get(i);
