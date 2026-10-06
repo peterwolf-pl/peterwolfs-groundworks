@@ -4,6 +4,7 @@ import com.piotrek.groundworks.api.deposit.DepositApi;
 import com.piotrek.groundworks.api.deposit.DepositResult;
 import com.piotrek.groundworks.api.excavation.ExcavationApi;
 import com.piotrek.groundworks.api.excavation.ExcavationResult;
+import com.piotrek.groundworks.api.material.GranularComposition;
 import com.piotrek.groundworks.api.material.GranularMaterial;
 import com.piotrek.groundworks.api.world.WorldSpaceApi;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
@@ -169,6 +170,25 @@ public final class GroundworksApi {
     @Nullable
     public static GranularMaterial getMaterial(ServerLevel level, BlockPos pos) {
         return WorldSpaceApi.getMaterial(level, pos);
+    }
+
+    /**
+     * Returns the exact material composition at a position.
+     *
+     * <p>Converted mixed cells return their stored integer composition.
+     * Unconverted vanilla Groundworks materials are reported as a pure full
+     * block composition without forcing conversion.</p>
+     */
+    public static GranularComposition getComposition(ServerLevel level, BlockPos pos) {
+        GranularCell cell = GranularWorldStorage.get(level).getCell(pos);
+        if (cell != null) {
+            return cell.composition();
+        }
+
+        GranularMaterial material = WorldSpaceApi.getMaterial(level, pos);
+        return material == null
+                ? new GranularComposition()
+                : GranularComposition.pure(material, GranularCell.TOTAL_UNITS);
     }
 
     /**
