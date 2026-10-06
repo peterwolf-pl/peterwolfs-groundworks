@@ -71,14 +71,15 @@ public final class BlockConverter {
             BlockPos pos,
             GranularCell cell
     ) {
-        if (!cell.isFull()) return false;
-        GranularMaterial material = cell.material();
+        if (!cell.isFull() || !cell.isPureMaterial()) return false;
+        GranularMaterial material = GranularMaterialRegistry.byId(cell.pureMaterialId());
         if (material == null || material == GranularMaterial.EMPTY || material.sourceBlock() == null) {
             return false;
         }
 
         if (aboveCell != null && !aboveCell.isEmpty()) {
-            return aboveCell.materialId() == cell.materialId();
+            return aboveCell.isPureMaterial()
+                    && aboveCell.pureMaterialId() == cell.pureMaterialId();
         }
 
         if (level == null) return false;
@@ -108,7 +109,7 @@ public final class BlockConverter {
     ) {
         if (!canSolidify(level, storage, pos, cell)) return false;
 
-        GranularMaterial material = cell.material();
+        GranularMaterial material = GranularMaterialRegistry.byId(cell.pureMaterialId());
         Block solidBlock = material.sourceBlock();
 
         // 1. Remove from granular storage
