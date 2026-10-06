@@ -67,6 +67,19 @@ public final class GranularComposition {
         return removed;
     }
 
+    public int addAll(GranularComposition other) {
+        if (other == null || other.isEmpty()) return 0;
+        int added = 0;
+        int[] counts = other.toArray();
+        for (int id = 1; id < counts.length; id++) {
+            if (counts[id] > 0) {
+                add(id, counts[id]);
+                added += counts[id];
+            }
+        }
+        return added;
+    }
+
     /**
      * Extract a single material. Useful for legacy machine APIs which expose
      * {@code storedMaterial()} plus an integer extraction amount.
