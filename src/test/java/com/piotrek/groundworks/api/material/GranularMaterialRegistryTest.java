@@ -29,8 +29,26 @@ class GranularMaterialRegistryTest {
     }
 
     @Test
+    @DisplayName("Stone is crushed into granular cobblestone")
+    void stoneMapsToCobblestone() {
+        assertSame(
+                GranularMaterialRegistry.COBBLESTONE,
+                GranularMaterialRegistry.forBlockState(Blocks.STONE.defaultBlockState())
+        );
+    }
+
+    @Test
+    @DisplayName("Cobblestone block maps to the same granular cobblestone material")
+    void cobblestoneMapsToCobblestone() {
+        assertSame(
+                GranularMaterialRegistry.COBBLESTONE,
+                GranularMaterialRegistry.forBlockState(Blocks.COBBLESTONE.defaultBlockState())
+        );
+    }
+
+    @Test
     @DisplayName("Unrelated solid blocks remain non-convertible")
-    void unrelatedBlockDoesNotMapToDirt() {
-        assertNull(GranularMaterialRegistry.forBlockState(Blocks.STONE.defaultBlockState()));
+    void unrelatedBlockDoesNotMapToGranularMaterial() {
+        assertNull(GranularMaterialRegistry.forBlockState(Blocks.OAK_PLANKS.defaultBlockState()));
     }
 }

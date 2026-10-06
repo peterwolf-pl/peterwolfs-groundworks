@@ -1,4 +1,5 @@
 {
   "item.pw_groundworks.debug_excavation_tool": "Groundworks Debug Shovel",
+  "item.pw_groundworks.groundworks_pickaxe": "Groundworks Pickaxe",
   "command.pw_groundworks.debug": "Peterwolf's Groundworks Debug Information"
 }
