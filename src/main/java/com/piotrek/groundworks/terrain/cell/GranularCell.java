@@ -145,7 +145,7 @@ public final class GranularCell {
             throw new IllegalStateException("Composition conservation violated while excavating");
         }
         refreshDominantMaterial();
-        markDirty(DirtyFlags.MATERIAL);
+        dirtyFlags |= DirtyFlags.MATERIAL;
         return removed;
     }
 
@@ -163,12 +163,14 @@ public final class GranularCell {
             throw new IllegalStateException("Occupancy/composition extraction mismatch");
         }
         refreshDominantMaterial();
-        markDirty(DirtyFlags.MATERIAL);
+        dirtyFlags |= DirtyFlags.MATERIAL;
         return extracted;
     }
 
     public int addFromBottom(int maxUnits) {
-        if (materialId <= 0) return 0;
+        if (materialId <= 0) {
+            materialId = defaultMaterialId();
+        }
         return addMaterialFromBottom(GranularMaterialRegistry.byId(materialId), maxUnits);
     }
 
@@ -178,7 +180,7 @@ public final class GranularCell {
         if (added > 0) {
             composition.add(material, added);
             refreshDominantMaterial();
-            markDirty(DirtyFlags.MATERIAL);
+            dirtyFlags |= DirtyFlags.MATERIAL;
         }
         return added;
     }
@@ -205,7 +207,7 @@ public final class GranularCell {
 
         composition.addAll(accepted);
         refreshDominantMaterial();
-        markDirty(DirtyFlags.MATERIAL);
+        dirtyFlags |= DirtyFlags.MATERIAL;
         return accepted;
     }
 
@@ -294,8 +296,9 @@ public final class GranularCell {
             materialId = 0;
         } else if (composition.totalUnits() != unitCount) {
             composition.clear();
-            if (materialId > 0) {
-                composition.add(materialId, unitCount);
+            int fallbackId = materialId > 0 ? materialId : defaultMaterialId();
+            if (fallbackId > 0) {
+                composition.add(fallbackId, unitCount);
             }
         }
         refreshDominantMaterial();
@@ -497,6 +500,12 @@ public final class GranularCell {
     private void refreshDominantMaterial() {
         materialId = composition.dominantMaterialId();
         if (unitCount == 0) materialId = 0;
+    }
+
+    private static int defaultMaterialId() {
+        return GranularMaterialRegistry.DIRT != null
+                ? GranularMaterialRegistry.DIRT.id()
+                : 1;
     }
 
     @Override
