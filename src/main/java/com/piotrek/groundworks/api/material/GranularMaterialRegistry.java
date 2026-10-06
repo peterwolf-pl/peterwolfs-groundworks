@@ -52,7 +52,7 @@ public final class GranularMaterialRegistry {
         ));
         COBBLESTONE = register(new GranularMaterial(
                 4, "cobblestone", () -> Blocks.COBBLESTONE,
-                2200f, 42f, 0.35f, 0.2f
+                2200f, 42f, 0.35f, 0.2f, 4
         ));
     }
 
