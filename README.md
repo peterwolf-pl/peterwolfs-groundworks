@@ -9,9 +9,10 @@ Peterwolf's Groundworks introduces a high-performance granular terrain simulatio
 ## Key Features
 
 - **Strict Volume Conservation:** Material is never created or destroyed. Authoritative volume calculations are strictly integer microvoxels ($8 \times 8 \times 8 = 512$ units per block $= 1.000\text{ m}^3$).
-- **Compact Bitset Storage:** 512-bit occupancy bitset (`long[8]`, 64 bytes) per active cell.
+- **Exact Mixed Materials:** One cell can contain dirt, sand, gravel, and cobblestone at exact integer proportions while occupancy remains compact.
+- **Compact Bitset Storage:** 512-bit occupancy bitset (`long[8]`, 64 bytes) plus a small per-material composition table per active cell.
 - **Lazy World Conversion:** The world remains vanilla until excavated, deposited into, or deformed.
-- **Built-in Materials:** Dirt, sand, gravel, and granular cobblestone produced by crushing stone.
+- **Built-in Materials:** Dirt, sand, gravel, and granular cobblestone produced by crushing stone. Cobblestone uses stable 4x4x4 microvoxel visual clusters for coarse rubble.
 - **Clean Public API:** `GroundworksApi.excavate(...)` and `GroundworksApi.deposit(...)` ready for external vehicle and machine mods.
 - **Developer / Hand Tools:**
   - `debug_excavation_tool` - shovel that removes 32 units on right-click and deposits on sneak-right-click.
