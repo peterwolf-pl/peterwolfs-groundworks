@@ -341,9 +341,6 @@ public final class WorldSpaceApi {
             }
             freeBelowGrade = fullLayers * GranularCell.RESOLUTION * GranularCell.RESOLUTION;
         } else {
-            if (!cell.isEmpty() && cell.materialId() != material.id()) {
-                return new DepositResult(material, 0, availableUnits, List.of());
-            }
             freeBelowGrade = countEmptyBelow(cell, fullLayers);
         }
 
