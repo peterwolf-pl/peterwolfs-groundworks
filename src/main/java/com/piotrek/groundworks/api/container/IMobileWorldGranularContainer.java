@@ -17,4 +17,12 @@ public interface IMobileWorldGranularContainer extends IWorldGranularContainer {
      * @return true when the receiver accepted the movement request
      */
     boolean requestAdvance(double blocks);
+
+    /**
+     * Returns true while a previously accepted advance request is still moving
+     * the receiver toward its requested position.
+     */
+    default boolean isAdvanceInProgress() {
+        return false;
+    }
 }
