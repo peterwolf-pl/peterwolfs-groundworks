@@ -43,7 +43,6 @@ public final class GranularContainerTransferApi {
                         area,
                         entity -> entity != source
                                 && entity instanceof IWorldGranularContainer container
-                                && container.hasRoom()
                                 && container.canReceiveAt(worldPoint)
                 )
                 .stream()
