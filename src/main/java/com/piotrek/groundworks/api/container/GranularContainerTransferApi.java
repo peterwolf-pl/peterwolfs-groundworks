@@ -31,11 +31,13 @@ public final class GranularContainerTransferApi {
             double searchRadius
     ) {
         double radius = Math.max(0.5D, searchRadius);
-        AABB area = AABB.ofSize(
-                worldPoint,
-                radius * 2.0D,
-                radius * 2.0D,
-                radius * 2.0D
+        AABB area = new AABB(
+                worldPoint.x - radius,
+                worldPoint.y - radius,
+                worldPoint.z - radius,
+                worldPoint.x + radius,
+                worldPoint.y + radius,
+                worldPoint.z + radius
         );
 
         return level.getEntitiesOfClass(
@@ -46,7 +48,13 @@ public final class GranularContainerTransferApi {
                                 && container.canReceiveAt(worldPoint)
                 )
                 .stream()
-                .min(Comparator.comparingDouble(entity -> entity.distanceToSqr(worldPoint)))
+                .min(Comparator.comparingDouble(entity ->
+                        entity.distanceToSqr(
+                                worldPoint.x,
+                                worldPoint.y,
+                                worldPoint.z
+                        )
+                ))
                 .map(entity -> (IWorldGranularContainer) entity)
                 .orElse(null);
     }
