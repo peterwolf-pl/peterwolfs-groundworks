@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "pw_groundworks:item/white_hard_hat"
+  }
+}

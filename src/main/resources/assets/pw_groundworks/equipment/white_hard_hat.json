@@ -1,0 +1,14 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "pw_groundworks:white_hard_hat"
+      }
+    ],
+    "humanoid_baby": [
+      {
+        "texture": "pw_groundworks:white_hard_hat"
+      }
+    ]
+  }
+}
