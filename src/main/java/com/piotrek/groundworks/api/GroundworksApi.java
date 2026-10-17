@@ -239,4 +239,47 @@ public final class GroundworksApi {
         if (cell == null) return -1;
         return cell.getColumnHeight(localX, localZ);
     }
+
+    // Tree & Fallen Log Interaction
+
+    /**
+     * Determines whether the block at {@code pos} is a fallen or horizontal log.
+     */
+    public static boolean isFallenLog(net.minecraft.world.level.Level level, BlockPos pos) {
+        return com.piotrek.groundworks.api.tree.GroundworksTreeApi.isFallenLog(level, pos);
+    }
+
+    /**
+     * Pushes a fallen log (and its connected cluster) in {@code direction}.
+     */
+    public static boolean pushFallenLog(
+            ServerLevel level,
+            BlockPos contactPos,
+            net.minecraft.core.Direction direction,
+            @Nullable net.minecraft.world.entity.Entity pusher
+    ) {
+        return com.piotrek.groundworks.api.tree.GroundworksTreeApi.pushFallenLog(level, contactPos, direction, pusher);
+    }
+
+    /**
+     * Detects a valid standing tree from any contacted trunk/branch log block.
+     */
+    public static @Nullable com.piotrek.groundworks.api.tree.GroundworksTreeApi.GroundworksTreeInfo detectTree(
+            ServerLevel level,
+            BlockPos hitPos
+    ) {
+        return com.piotrek.groundworks.api.tree.GroundworksTreeApi.detectTree(level, hitPos);
+    }
+
+    /**
+     * Fells a detected tree in the specified horizontal direction.
+     */
+    public static boolean fellTree(
+            ServerLevel level,
+            @Nullable net.minecraft.server.level.ServerPlayer player,
+            com.piotrek.groundworks.api.tree.GroundworksTreeApi.GroundworksTreeInfo tree,
+            net.minecraft.core.Direction direction
+    ) {
+        return com.piotrek.groundworks.api.tree.GroundworksTreeApi.fellTree(level, player, tree, direction);
+    }
 }

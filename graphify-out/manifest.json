@@ -1,0 +1,542 @@
+{
+  "build.gradle": {
+    "mtime": 1791158754.6560051,
+    "seen": 1791418148.796781,
+    "ast_hash": "b9d30d6c609edefba735efb715a30974",
+    "semantic_hash": "b9d30d6c609edefba735efb715a30974"
+  },
+  "gradlew": {
+    "mtime": 1791074033.818451,
+    "seen": 1791418148.7967842,
+    "ast_hash": "65578da0358a01f31a6a78dfcf47e2bf",
+    "semantic_hash": "65578da0358a01f31a6a78dfcf47e2bf"
+  },
+  "scripts/compare_visuals.py": {
+    "mtime": 1791158754.6570663,
+    "seen": 1791418148.7967849,
+    "ast_hash": "9b525697f0838b4f21a0256c64d2e656",
+    "semantic_hash": "9b525697f0838b4f21a0256c64d2e656"
+  },
+  "settings.gradle": {
+    "mtime": 1791074026.9136147,
+    "seen": 1791418148.7967858,
+    "ast_hash": "a8bfadf12d75960ce09fef7ddca4e6f5",
+    "semantic_hash": "a8bfadf12d75960ce09fef7ddca4e6f5"
+  },
+  "src/client/java/com/piotrek/groundworks/client/GroundworksClient.java": {
+    "mtime": 1791515436.8418846,
+    "seen": 1791528892.7249029,
+    "ast_hash": "553f389438f727f29fc3315eff602613",
+    "semantic_hash": "553f389438f727f29fc3315eff602613"
+  },
+  "src/client/java/com/piotrek/groundworks/client/render/GranularBlockEntityRenderer.java": {
+    "mtime": 1791335332.8063526,
+    "seen": 1791418148.796787,
+    "ast_hash": "412f6f952d7e6084d568173b4d4ef546",
+    "semantic_hash": "412f6f952d7e6084d568173b4d4ef546"
+  },
+  "src/client/java/com/piotrek/groundworks/client/render/GranularBlockRenderState.java": {
+    "mtime": 1791158754.657894,
+    "seen": 1791418148.796788,
+    "ast_hash": "500c107d1a35d95f65e062e1da38427e",
+    "semantic_hash": "500c107d1a35d95f65e062e1da38427e"
+  },
+  "src/client/java/com/piotrek/groundworks/client/render/GranularMeshCache.java": {
+    "mtime": 1791315969.4764557,
+    "seen": 1791418148.796788,
+    "ast_hash": "0444a01c6e5d0ee9fcba994e12850157",
+    "semantic_hash": "0444a01c6e5d0ee9fcba994e12850157"
+  },
+  "src/client/java/com/piotrek/groundworks/client/render/GranularSurfaceMesher.java": {
+    "mtime": 1791419272.6311204,
+    "seen": 1791528892.724909,
+    "ast_hash": "657578da170c08924eb041b1f52a05d4",
+    "semantic_hash": "657578da170c08924eb041b1f52a05d4"
+  },
+  "src/client/java/com/piotrek/groundworks/client/render/GranularTerrainRenderer.java": {
+    "mtime": 1791515447.6087666,
+    "seen": 1791528892.72491,
+    "ast_hash": "84cf68746ed6235c465aa42df6c1113a",
+    "semantic_hash": "84cf68746ed6235c465aa42df6c1113a"
+  },
+  "src/gametest/java/com/piotrek/groundworks/gametest/GroundworksVisualGameTest.java": {
+    "mtime": 1791315969.4770932,
+    "seen": 1791418148.7967901,
+    "ast_hash": "da01343c3f2c97dbd677d06d25a68c95",
+    "semantic_hash": "da01343c3f2c97dbd677d06d25a68c95"
+  },
+  "src/gametest/resources/fabric.mod.json": {
+    "mtime": 1791158754.6596224,
+    "seen": 1791418148.7967901,
+    "ast_hash": "de2e207b6ba84d15a81fe1acb880e1ae",
+    "semantic_hash": "de2e207b6ba84d15a81fe1acb880e1ae"
+  },
+  "src/main/java/com/piotrek/groundworks/GroundworksMod.java": {
+    "mtime": 1791424324.1884127,
+    "seen": 1791528892.724913,
+    "ast_hash": "f356e5556c8e5cfe4a417c61199751da",
+    "semantic_hash": "f356e5556c8e5cfe4a417c61199751da"
+  },
+  "src/main/java/com/piotrek/groundworks/api/GroundworksApi.java": {
+    "mtime": 1791364629.4579167,
+    "seen": 1791418148.796791,
+    "ast_hash": "0efad252593381d1b9ca52a84c7f26f6",
+    "semantic_hash": "0efad252593381d1b9ca52a84c7f26f6"
+  },
+  "src/main/java/com/piotrek/groundworks/api/container/GranularContainerTransferApi.java": {
+    "mtime": 1791369376.826839,
+    "seen": 1791418148.796792,
+    "ast_hash": "b5bc5b24a79576425c5bfcf396d6eaec",
+    "semantic_hash": "b5bc5b24a79576425c5bfcf396d6eaec"
+  },
+  "src/main/java/com/piotrek/groundworks/api/container/IGranularContainer.java": {
+    "mtime": 1791364629.458466,
+    "seen": 1791418148.796792,
+    "ast_hash": "193ed35821f76825fad9c2c2f7e54aa7",
+    "semantic_hash": "193ed35821f76825fad9c2c2f7e54aa7"
+  },
+  "src/main/java/com/piotrek/groundworks/api/container/IMobileWorldGranularContainer.java": {
+    "mtime": 1791375023.1952834,
+    "seen": 1791418148.796793,
+    "ast_hash": "1f0d773cfea767663c73524c8ef7e0db",
+    "semantic_hash": "1f0d773cfea767663c73524c8ef7e0db"
+  },
+  "src/main/java/com/piotrek/groundworks/api/container/IWorldGranularContainer.java": {
+    "mtime": 1791364629.4589214,
+    "seen": 1791418148.796793,
+    "ast_hash": "3684b8932b2017f685eede10a23a5e6e",
+    "semantic_hash": "3684b8932b2017f685eede10a23a5e6e"
+  },
+  "src/main/java/com/piotrek/groundworks/api/container/SimpleGranularContainer.java": {
+    "mtime": 1791364629.4594333,
+    "seen": 1791418148.7967942,
+    "ast_hash": "ec63c62f17868569a821688b677b0c32",
+    "semantic_hash": "ec63c62f17868569a821688b677b0c32"
+  },
+  "src/main/java/com/piotrek/groundworks/api/deposit/DepositApi.java": {
+    "mtime": 1791364629.4595902,
+    "seen": 1791418148.7967942,
+    "ast_hash": "98339e525645ee2bdbeeb6b0b09dd29c",
+    "semantic_hash": "98339e525645ee2bdbeeb6b0b09dd29c"
+  },
+  "src/main/java/com/piotrek/groundworks/api/deposit/DepositResult.java": {
+    "mtime": 1791074222.290041,
+    "seen": 1791418148.796795,
+    "ast_hash": "dfbaebb1c2e98f1ba4467a48e8a69f74",
+    "semantic_hash": "dfbaebb1c2e98f1ba4467a48e8a69f74"
+  },
+  "src/main/java/com/piotrek/groundworks/api/excavation/ExcavationApi.java": {
+    "mtime": 1791315969.4778132,
+    "seen": 1791418148.796795,
+    "ast_hash": "8cda2fd7a3cb9f9a94d02bcbd00024e5",
+    "semantic_hash": "8cda2fd7a3cb9f9a94d02bcbd00024e5"
+  },
+  "src/main/java/com/piotrek/groundworks/api/excavation/ExcavationBrush.java": {
+    "mtime": 1791158754.66168,
+    "seen": 1791418148.7967958,
+    "ast_hash": "f91a71150322a08272e4eb3fbea382e8",
+    "semantic_hash": "f91a71150322a08272e4eb3fbea382e8"
+  },
+  "src/main/java/com/piotrek/groundworks/api/excavation/ExcavationResult.java": {
+    "mtime": 1791074197.3073962,
+    "seen": 1791418148.7967958,
+    "ast_hash": "f49d1341993639b034a9d60190b7a3ad",
+    "semantic_hash": "f49d1341993639b034a9d60190b7a3ad"
+  },
+  "src/main/java/com/piotrek/groundworks/api/material/GranularComposition.java": {
+    "mtime": 1791364629.4598393,
+    "seen": 1791418148.796797,
+    "ast_hash": "abe1a786d8e739c636a7c16fe1ee98c9",
+    "semantic_hash": "abe1a786d8e739c636a7c16fe1ee98c9"
+  },
+  "src/main/java/com/piotrek/groundworks/api/material/GranularMaterial.java": {
+    "mtime": 1791364629.4600434,
+    "seen": 1791418148.796797,
+    "ast_hash": "66ef14afae1c435f11120131dd768ba9",
+    "semantic_hash": "66ef14afae1c435f11120131dd768ba9"
+  },
+  "src/main/java/com/piotrek/groundworks/api/material/GranularMaterialRegistry.java": {
+    "mtime": 1791364629.460204,
+    "seen": 1791418148.796798,
+    "ast_hash": "343d18278491302f44b6a6d6d1370cde",
+    "semantic_hash": "343d18278491302f44b6a6d6d1370cde"
+  },
+  "src/main/java/com/piotrek/groundworks/api/world/WorldSpaceApi.java": {
+    "mtime": 1791364629.4604254,
+    "seen": 1791418148.796798,
+    "ast_hash": "fc3c366916b3533788f91efd6d88b132",
+    "semantic_hash": "fc3c366916b3533788f91efd6d88b132"
+  },
+  "src/main/java/com/piotrek/groundworks/block/GranularBlock.java": {
+    "mtime": 1791179563.8329186,
+    "seen": 1791418148.796799,
+    "ast_hash": "9e147268398bbf07e4462bff14deee31",
+    "semantic_hash": "9e147268398bbf07e4462bff14deee31"
+  },
+  "src/main/java/com/piotrek/groundworks/block/GranularCollisionShapeCache.java": {
+    "mtime": 1791158754.662498,
+    "seen": 1791418148.796799,
+    "ast_hash": "6300289fe2cfd853c26621906b7a7efa",
+    "semantic_hash": "6300289fe2cfd853c26621906b7a7efa"
+  },
+  "src/main/java/com/piotrek/groundworks/block/entity/GranularBlockEntity.java": {
+    "mtime": 1791364629.4605827,
+    "seen": 1791418148.7968,
+    "ast_hash": "92f005015a41a9074f04d283c5d9614f",
+    "semantic_hash": "92f005015a41a9074f04d283c5d9614f"
+  },
+  "src/main/java/com/piotrek/groundworks/command/GroundworksCommand.java": {
+    "mtime": 1791335332.8070767,
+    "seen": 1791418148.7968,
+    "ast_hash": "df40fbf4ccb6f5ed523aa191a204dca4",
+    "semantic_hash": "df40fbf4ccb6f5ed523aa191a204dca4"
+  },
+  "src/main/java/com/piotrek/groundworks/integration/DebugExcavationTool.java": {
+    "mtime": 1791364629.4608,
+    "seen": 1791418148.796801,
+    "ast_hash": "696698ac15b5c7e4cb63376eeac16091",
+    "semantic_hash": "696698ac15b5c7e4cb63376eeac16091"
+  },
+  "src/main/java/com/piotrek/groundworks/integration/GranularContainerTool.java": {
+    "mtime": 1791364629.4609592,
+    "seen": 1791418148.796801,
+    "ast_hash": "98788773d44dd831898f62e5a38ceabf",
+    "semantic_hash": "98788773d44dd831898f62e5a38ceabf"
+  },
+  "src/main/java/com/piotrek/groundworks/integration/GroundworksItems.java": {
+    "mtime": 1791485595.0309527,
+    "seen": 1791528892.724929,
+    "ast_hash": "71a06d63d54ef26e7910e5b4f117b416",
+    "semantic_hash": "71a06d63d54ef26e7910e5b4f117b416"
+  },
+  "src/main/java/com/piotrek/groundworks/integration/GroundworksPickaxe.java": {
+    "mtime": 1791364629.4612367,
+    "seen": 1791418148.796802,
+    "ast_hash": "935474c95878e5e69b2561284f3bb9b2",
+    "semantic_hash": "935474c95878e5e69b2561284f3bb9b2"
+  },
+  "src/main/java/com/piotrek/groundworks/networking/GranularCellSyncPayload.java": {
+    "mtime": 1791364629.461522,
+    "seen": 1791418148.796803,
+    "ast_hash": "125da6cb6e012c44b1c6553d45c85fb9",
+    "semantic_hash": "125da6cb6e012c44b1c6553d45c85fb9"
+  },
+  "src/main/java/com/piotrek/groundworks/networking/GranularSyncHandler.java": {
+    "mtime": 1791420755.4871247,
+    "seen": 1791528892.724931,
+    "ast_hash": "de85ba4bab5aa2f6204c8d871d49c105",
+    "semantic_hash": "de85ba4bab5aa2f6204c8d871d49c105"
+  },
+  "src/main/java/com/piotrek/groundworks/simulation/GranularRelaxationEngine.java": {
+    "mtime": 1791424256.2137814,
+    "seen": 1791528892.7249322,
+    "ast_hash": "04ee84ccc56a059eefc11b2fe7bd0e17",
+    "semantic_hash": "04ee84ccc56a059eefc11b2fe7bd0e17"
+  },
+  "src/main/java/com/piotrek/groundworks/terrain/cell/DirtyFlags.java": {
+    "mtime": 1791074136.6863105,
+    "seen": 1791418148.7968042,
+    "ast_hash": "659d09b986c7f38d120e8391f64b25fb",
+    "semantic_hash": "659d09b986c7f38d120e8391f64b25fb"
+  },
+  "src/main/java/com/piotrek/groundworks/terrain/cell/GranularCell.java": {
+    "mtime": 1791423988.899404,
+    "seen": 1791528892.7249339,
+    "ast_hash": "37413c5cfe915cc962d336c30b99d2cd",
+    "semantic_hash": "37413c5cfe915cc962d336c30b99d2cd"
+  },
+  "src/main/java/com/piotrek/groundworks/terrain/conversion/BlockConverter.java": {
+    "mtime": 1791364629.462202,
+    "seen": 1791418148.7968051,
+    "ast_hash": "1d75f420a8681e273b3d55bccfda70d3",
+    "semantic_hash": "1d75f420a8681e273b3d55bccfda70d3"
+  },
+  "src/main/java/com/piotrek/groundworks/terrain/storage/ClientGranularStorage.java": {
+    "mtime": 1791420895.2489238,
+    "seen": 1791528892.7249348,
+    "ast_hash": "316d45bbebfaa29b54c1a48cb9188b84",
+    "semantic_hash": "316d45bbebfaa29b54c1a48cb9188b84"
+  },
+  "src/main/java/com/piotrek/groundworks/terrain/storage/GranularWorldStorage.java": {
+    "mtime": 1791424262.724329,
+    "seen": 1791528892.724936,
+    "ast_hash": "5aa21d5d217caeb82e8c369025fc3629",
+    "semantic_hash": "5aa21d5d217caeb82e8c369025fc3629"
+  },
+  "src/main/resources/assets/pw_groundworks/blockstates/granular_block.json": {
+    "mtime": 1791158754.6659727,
+    "seen": 1791418148.796811,
+    "ast_hash": "ed4335180b770592748445fa9463c9a8",
+    "semantic_hash": "ed4335180b770592748445fa9463c9a8"
+  },
+  "src/main/resources/assets/pw_groundworks/items/debug_excavation_tool.json": {
+    "mtime": 1791074362.235417,
+    "seen": 1791418148.796811,
+    "ast_hash": "4aee9ac23693b0e3a90cbcdd0a119984",
+    "semantic_hash": "4aee9ac23693b0e3a90cbcdd0a119984"
+  },
+  "src/main/resources/assets/pw_groundworks/items/groundworks_pickaxe.json": {
+    "mtime": 1791364629.462562,
+    "seen": 1791418148.796812,
+    "ast_hash": "c99f1d22c2040936582e26e395ce4b19",
+    "semantic_hash": "c99f1d22c2040936582e26e395ce4b19"
+  },
+  "src/main/resources/assets/pw_groundworks/lang/en_us.json": {
+    "mtime": 1791500828.9556942,
+    "seen": 1791528892.724941,
+    "ast_hash": "5da5222940dd31ff892186359eeed0aa",
+    "semantic_hash": "5da5222940dd31ff892186359eeed0aa"
+  },
+  "src/main/resources/assets/pw_groundworks/lang/pl_pl.json": {
+    "mtime": 1791500832.4879463,
+    "seen": 1791528892.724941,
+    "ast_hash": "141f8ce10a8639d64c49af940cf57902",
+    "semantic_hash": "141f8ce10a8639d64c49af940cf57902"
+  },
+  "src/main/resources/assets/pw_groundworks/models/block/granular_block.json": {
+    "mtime": 1791158754.6664014,
+    "seen": 1791418148.796813,
+    "ast_hash": "cba52b2545abb2549ecac1aad9189fc8",
+    "semantic_hash": "cba52b2545abb2549ecac1aad9189fc8"
+  },
+  "src/main/resources/fabric.mod.json": {
+    "mtime": 1791498914.5969822,
+    "seen": 1791528892.7249432,
+    "ast_hash": "e268b0cfb308bbe9f931163c94f492f1",
+    "semantic_hash": "e268b0cfb308bbe9f931163c94f492f1"
+  },
+  "src/test/java/com/piotrek/groundworks/api/container/SimpleGranularContainerTest.java": {
+    "mtime": 1791364629.4630895,
+    "seen": 1791418148.796814,
+    "ast_hash": "a963c9843d5b34a0845827836dae2b45",
+    "semantic_hash": "a963c9843d5b34a0845827836dae2b45"
+  },
+  "src/test/java/com/piotrek/groundworks/api/excavation/ExcavationBrushTest.java": {
+    "mtime": 1791158754.6669872,
+    "seen": 1791418148.7968152,
+    "ast_hash": "e931800cb393e9582935141a1ad57d04",
+    "semantic_hash": "e931800cb393e9582935141a1ad57d04"
+  },
+  "src/test/java/com/piotrek/groundworks/api/material/GranularCompositionTest.java": {
+    "mtime": 1791364629.4631808,
+    "seen": 1791418148.7968152,
+    "ast_hash": "03975c59d7f9bd4921811fffd1573556",
+    "semantic_hash": "03975c59d7f9bd4921811fffd1573556"
+  },
+  "src/test/java/com/piotrek/groundworks/api/material/GranularMaterialRegistryTest.java": {
+    "mtime": 1791364629.4633107,
+    "seen": 1791418148.7968159,
+    "ast_hash": "2880534db0621c28e157d10b5481b47d",
+    "semantic_hash": "2880534db0621c28e157d10b5481b47d"
+  },
+  "src/test/java/com/piotrek/groundworks/api/world/WorldSpaceApiTest.java": {
+    "mtime": 1791181810.15115,
+    "seen": 1791418148.7968159,
+    "ast_hash": "9ed4ad85f48b2bfa7b7d984a6937195b",
+    "semantic_hash": "9ed4ad85f48b2bfa7b7d984a6937195b"
+  },
+  "src/test/java/com/piotrek/groundworks/block/GranularCollisionShapeCacheTest.java": {
+    "mtime": 1791158754.6676147,
+    "seen": 1791418148.7968168,
+    "ast_hash": "effee222c1e6e1ddea19a5376ecd98c7",
+    "semantic_hash": "effee222c1e6e1ddea19a5376ecd98c7"
+  },
+  "src/test/java/com/piotrek/groundworks/client/render/GranularSurfaceMesherTest.java": {
+    "mtime": 1791419701.223961,
+    "seen": 1791528892.724949,
+    "ast_hash": "933999041636e2fbc97acabefef57fc6",
+    "semantic_hash": "933999041636e2fbc97acabefef57fc6"
+  },
+  "src/test/java/com/piotrek/groundworks/networking/GranularNetworkingTest.java": {
+    "mtime": 1791420772.6290588,
+    "seen": 1791528892.724951,
+    "ast_hash": "7399c7d044287915bdda5be25c0975ff",
+    "semantic_hash": "7399c7d044287915bdda5be25c0975ff"
+  },
+  "src/test/java/com/piotrek/groundworks/simulation/GranularRelaxationTest.java": {
+    "mtime": 1791335332.8078458,
+    "seen": 1791418148.796818,
+    "ast_hash": "e0ab65aa79db1f41006f4a3114ca3d8a",
+    "semantic_hash": "e0ab65aa79db1f41006f4a3114ca3d8a"
+  },
+  "src/test/java/com/piotrek/groundworks/terrain/cell/GranularCellSerializationTest.java": {
+    "mtime": 1791364629.463459,
+    "seen": 1791418148.796819,
+    "ast_hash": "52b5673b6dafb6ccabebfe787bd630d1",
+    "semantic_hash": "52b5673b6dafb6ccabebfe787bd630d1"
+  },
+  "src/test/java/com/piotrek/groundworks/terrain/cell/GranularCellTest.java": {
+    "mtime": 1791364629.4636118,
+    "seen": 1791418148.796819,
+    "ast_hash": "0b3cbe8251cf15e50af182090a42393f",
+    "semantic_hash": "0b3cbe8251cf15e50af182090a42393f"
+  },
+  "README.md": {
+    "mtime": 1791364629.457369,
+    "seen": 1791418148.79682,
+    "ast_hash": "8fa1dbfa52ee5e36ee1149e3123ef273",
+    "semantic_hash": "8fa1dbfa52ee5e36ee1149e3123ef273"
+  },
+  "REFERENCE_MATRIX.md": {
+    "mtime": 1791073304.2102137,
+    "seen": 1791418148.79682,
+    "ast_hash": "045730b55aa7be3f0c0447cce573dab9",
+    "semantic_hash": "045730b55aa7be3f0c0447cce573dab9"
+  },
+  "SKILL.md": {
+    "mtime": 1791335332.8057194,
+    "seen": 1791418148.7968209,
+    "ast_hash": "48e2589c9fe4f1eb3c0d6ccfcdf43dfd",
+    "semantic_hash": "48e2589c9fe4f1eb3c0d6ccfcdf43dfd"
+  },
+  "docs/architecture.md": {
+    "mtime": 1791074692.2158542,
+    "seen": 1791418148.7968209,
+    "ast_hash": "cc9d30826ad95175d11deaa6bb505ff3",
+    "semantic_hash": "cc9d30826ad95175d11deaa6bb505ff3"
+  },
+  "docs/granular-simulation-review.md": {
+    "mtime": 1791158754.6562831,
+    "seen": 1791418148.796822,
+    "ast_hash": "9ae509ffad6b33971ffd32a4e6c83f41",
+    "semantic_hash": "9ae509ffad6b33971ffd32a4e6c83f41"
+  },
+  "docs/granular-storage.md": {
+    "mtime": 1791364629.4575458,
+    "seen": 1791418148.796822,
+    "ast_hash": "05f7b1eb72b979df206a5511dfa3a6d4",
+    "semantic_hash": "05f7b1eb72b979df206a5511dfa3a6d4"
+  },
+  "docs/networking.md": {
+    "mtime": 1791074700.1975973,
+    "seen": 1791418148.796823,
+    "ast_hash": "cb6c385729f05dc3bdfd0a46b06446b7",
+    "semantic_hash": "cb6c385729f05dc3bdfd0a46b06446b7"
+  },
+  "docs/performance.md": {
+    "mtime": 1791074707.4701626,
+    "seen": 1791418148.796823,
+    "ast_hash": "ec658d7cbad6558159c28421dab46fba",
+    "semantic_hash": "ec658d7cbad6558159c28421dab46fba"
+  },
+  "docs/rendering-review.md": {
+    "mtime": 1791158754.6565318,
+    "seen": 1791418148.796823,
+    "ast_hash": "be1a7f9d11d597393ded3a1c806e407b",
+    "semantic_hash": "be1a7f9d11d597393ded3a1c806e407b"
+  },
+  "docs/rendering.md": {
+    "mtime": 1791074704.2930572,
+    "seen": 1791418148.796824,
+    "ast_hash": "54f541d00a91d72ea347da47e1c67bd4",
+    "semantic_hash": "54f541d00a91d72ea347da47e1c67bd4"
+  },
+  "docs/simulation.md": {
+    "mtime": 1791074697.8430233,
+    "seen": 1791418148.796824,
+    "ast_hash": "f618c38b4c44e8ca8aa09f70fd9f39ad",
+    "semantic_hash": "f618c38b4c44e8ca8aa09f70fd9f39ad"
+  },
+  "docs/third-party-research.md": {
+    "mtime": 1791074688.969253,
+    "seen": 1791418148.7968252,
+    "ast_hash": "819b046bbb9a95eed210ecb741cf98dd",
+    "semantic_hash": "819b046bbb9a95eed210ecb741cf98dd"
+  },
+  "docs/visual-testing.md": {
+    "mtime": 1791158754.6567805,
+    "seen": 1791418148.7968252,
+    "ast_hash": "ed2314a7fd7335b99e0964b0c3fc2f0f",
+    "semantic_hash": "ed2314a7fd7335b99e0964b0c3fc2f0f"
+  },
+  "docs/world-space-api.md": {
+    "mtime": 1791315969.4760215,
+    "seen": 1791418148.7968261,
+    "ast_hash": "2c70b484e00a626dbea3b45b31fe56b0",
+    "semantic_hash": "2c70b484e00a626dbea3b45b31fe56b0"
+  },
+  "src/main/resources/assets/pw_groundworks/items/white_hard_hat.json": {
+    "mtime": 1791422960.1386387,
+    "seen": 1791528892.72494,
+    "ast_hash": "b3a73d9d8954528ab7b333788b256390",
+    "semantic_hash": "b3a73d9d8954528ab7b333788b256390"
+  },
+  "src/main/resources/assets/pw_groundworks/models/item/white_hard_hat.json": {
+    "mtime": 1791422955.6710067,
+    "seen": 1791528892.7249432,
+    "ast_hash": "c6c790cb39689baeeff016ecd3c4b61f",
+    "semantic_hash": "c6c790cb39689baeeff016ecd3c4b61f"
+  },
+  "src/main/resources/assets/pw_groundworks/textures/item/white_hard_hat.png": {
+    "mtime": 1791422928.3289638,
+    "seen": 1791528892.7249658,
+    "ast_hash": "11edc812080af53b5010d75b4cb24a84",
+    "semantic_hash": "11edc812080af53b5010d75b4cb24a84"
+  },
+  "src/main/java/com/piotrek/groundworks/simulation/CellPhysics.java": {
+    "mtime": 1791424157.0846643,
+    "seen": 1791528892.7249322,
+    "ast_hash": "2f19179dedaf99368d77eaa4db848064",
+    "semantic_hash": "2f19179dedaf99368d77eaa4db848064"
+  },
+  "src/client/java/com/piotrek/groundworks/client/camera/CameraZoomManager.java": {
+    "mtime": 1791514670.944827,
+    "seen": 1791528892.7249038,
+    "ast_hash": "7efb2ad049c5f2b1659afaf8d0b66beb",
+    "semantic_hash": "7efb2ad049c5f2b1659afaf8d0b66beb"
+  },
+  "src/client/java/com/piotrek/groundworks/client/mixin/CameraMixin.java": {
+    "mtime": 1791514678.6467073,
+    "seen": 1791528892.724905,
+    "ast_hash": "e79e09443b887234ad91a786e2586082",
+    "semantic_hash": "e79e09443b887234ad91a786e2586082"
+  },
+  "src/client/java/com/piotrek/groundworks/client/mixin/MouseHandlerMixin.java": {
+    "mtime": 1791500864.1637475,
+    "seen": 1791528892.724906,
+    "ast_hash": "7c194c02efca064739c71d16c2b7432d",
+    "semantic_hash": "7c194c02efca064739c71d16c2b7432d"
+  },
+  "src/client/resources/pw_groundworks.client.mixins.json": {
+    "mtime": 1791498909.101394,
+    "seen": 1791528892.72491,
+    "ast_hash": "aec3b249c8da63c77f5b07381f31c7bf",
+    "semantic_hash": "aec3b249c8da63c77f5b07381f31c7bf"
+  },
+  "src/main/resources/assets/pw_groundworks/equipment/white_hard_hat.json": {
+    "mtime": 1791485275.732601,
+    "seen": 1791528892.724937,
+    "ast_hash": "a389a2ec7cc6c440029e9ce8779d8f78",
+    "semantic_hash": "a389a2ec7cc6c440029e9ce8779d8f78"
+  },
+  "src/test/java/com/piotrek/groundworks/client/camera/CameraZoomManagerTest.java": {
+    "mtime": 1791514699.1498992,
+    "seen": 1791528892.724948,
+    "ast_hash": "de51984618a5968d20827f8ec17de7a9",
+    "semantic_hash": "de51984618a5968d20827f8ec17de7a9"
+  },
+  "src/test/java/com/piotrek/groundworks/integration/WhiteHardHatTest.java": {
+    "mtime": 1791485582.9594755,
+    "seen": 1791528892.72495,
+    "ast_hash": "e60959ddd6fed03e6246fb4e9952da6e",
+    "semantic_hash": "e60959ddd6fed03e6246fb4e9952da6e"
+  },
+  "src/main/resources/assets/pw_groundworks/textures/entity/equipment/humanoid/white_hard_hat.png": {
+    "mtime": 1791486389.3324952,
+    "seen": 1791528892.7249641,
+    "ast_hash": "2c1a4e0878c94c4d06552d6ba2ea4981",
+    "semantic_hash": "2c1a4e0878c94c4d06552d6ba2ea4981"
+  },
+  "src/main/resources/assets/pw_groundworks/textures/entity/equipment/humanoid_baby/white_hard_hat.png": {
+    "mtime": 1791486389.3327143,
+    "seen": 1791528892.724965,
+    "ast_hash": "2c1a4e0878c94c4d06552d6ba2ea4981",
+    "semantic_hash": "2c1a4e0878c94c4d06552d6ba2ea4981"
+  },
+  "CHANGELOG.md": {
+    "mtime": 1791514720.9467456,
+    "seen": 1791528892.7249532,
+    "ast_hash": "81dc386405b05709da64cf58062a4e63",
+    "semantic_hash": "81dc386405b05709da64cf58062a4e63"
+  }
+}

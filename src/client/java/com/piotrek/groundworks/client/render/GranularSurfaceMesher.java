@@ -5,7 +5,9 @@ import net.minecraft.core.BlockPos;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Builds a smooth heightfield surface from authoritative microvoxel occupancy.
@@ -22,7 +24,7 @@ public final class GranularSurfaceMesher {
         GranularCell get(BlockPos pos);
     }
 
-    /** A quad with per-vertex positions and smooth normals. */
+    /** A quad with per-vertex positions, smooth normals, and material id. */
     public record Quad(
             Vector3f v0,
             Vector3f v1,
@@ -31,18 +33,50 @@ public final class GranularSurfaceMesher {
             Vector3f n0,
             Vector3f n1,
             Vector3f n2,
-            Vector3f n3
-    ) {}
+            Vector3f n3,
+            int materialId
+    ) {
+        public Quad(
+                Vector3f v0,
+                Vector3f v1,
+                Vector3f v2,
+                Vector3f v3,
+                Vector3f n0,
+                Vector3f n1,
+                Vector3f n2,
+                Vector3f n3
+        ) {
+            this(v0, v1, v2, v3, n0, n1, n2, n3, 1);
+        }
+    }
 
     /** Compiled mesh data for one cell and its sampled neighborhood. */
     public record CellMesh(
             int revision,
-            List<Quad> quads
+            List<Quad> quads,
+            Map<Integer, List<Quad>> quadsByMaterial
     ) {
-        public static final CellMesh EMPTY = new CellMesh(-1, List.of());
+        public static final CellMesh EMPTY = new CellMesh(-1, List.of(), Map.of());
+
+        public CellMesh(int revision, List<Quad> quads) {
+            this(revision, quads, groupByMaterial(quads));
+        }
 
         public boolean isEmpty() {
             return quads.isEmpty();
+        }
+
+        public List<Quad> quadsForMaterial(int materialId) {
+            return quadsByMaterial.getOrDefault(materialId, List.of());
+        }
+
+        private static Map<Integer, List<Quad>> groupByMaterial(List<Quad> quads) {
+            if (quads.isEmpty()) return Map.of();
+            Map<Integer, List<Quad>> map = new HashMap<>();
+            for (Quad q : quads) {
+                map.computeIfAbsent(q.materialId(), k -> new ArrayList<>()).add(q);
+            }
+            return map;
         }
     }
 
@@ -72,6 +106,11 @@ public final class GranularSurfaceMesher {
                 int columnHeight = cell.getColumnHeight(x, z);
                 if (columnHeight < 0) continue;
 
+                int columnMat = cell.visualMaterialId(pos.asLong(), x, Math.max(0, columnHeight), z);
+                if (columnMat <= 0) {
+                    columnMat = cell.materialId() > 0 ? cell.materialId() : 1;
+                }
+
                 boolean coveredFromAbove = isCoveredFromAbove(pos, x, z, lookup);
 
                 float x0 = x * STEP;
@@ -97,7 +136,8 @@ public final class GranularSurfaceMesher {
                             surfaceNormal(pos, x, z, lookup),
                             surfaceNormal(pos, x, z + 1, lookup),
                             surfaceNormal(pos, x + 1, z + 1, lookup),
-                            surfaceNormal(pos, x + 1, z, lookup)
+                            surfaceNormal(pos, x + 1, z, lookup),
+                            columnMat
                     ));
                 }
 
@@ -112,19 +152,19 @@ public final class GranularSurfaceMesher {
 
                 float neighborZNeg = sampleColumnHeight(pos, x, z - 1, lookup);
                 if (neighborZNeg <= 0.0f || (coveredFromAbove && neighborZNeg < 1.0f)) {
-                    quads.add(sideQuad(x1, sideH10, x0, sideH00, z0, 0, 0, -1));
+                    quads.add(sideQuad(x1, sideH10, x0, sideH00, z0, 0, 0, -1, columnMat));
                 }
                 float neighborZPos = sampleColumnHeight(pos, x, z + 1, lookup);
                 if (neighborZPos <= 0.0f || (coveredFromAbove && neighborZPos < 1.0f)) {
-                    quads.add(sideQuad(x0, sideH01, x1, sideH11, z1, 0, 0, 1));
+                    quads.add(sideQuad(x0, sideH01, x1, sideH11, z1, 0, 0, 1, columnMat));
                 }
                 float neighborXNeg = sampleColumnHeight(pos, x - 1, z, lookup);
                 if (neighborXNeg <= 0.0f || (coveredFromAbove && neighborXNeg < 1.0f)) {
-                    quads.add(sideQuadZ(z0, sideH00, z1, sideH01, x0, -1, 0, 0));
+                    quads.add(sideQuadZ(z0, sideH00, z1, sideH01, x0, -1, 0, 0, columnMat));
                 }
                 float neighborXPos = sampleColumnHeight(pos, x + 1, z, lookup);
                 if (neighborXPos <= 0.0f || (coveredFromAbove && neighborXPos < 1.0f)) {
-                    quads.add(sideQuadZ(z1, sideH11, z0, sideH10, x1, 1, 0, 0));
+                    quads.add(sideQuadZ(z1, sideH11, z0, sideH10, x1, 1, 0, 0, columnMat));
                 }
             }
         }
@@ -138,7 +178,8 @@ public final class GranularSurfaceMesher {
 
     private static Quad sideQuad(
             float x0, float h0, float x1, float h1, float z,
-            float nx, float ny, float nz
+            float nx, float ny, float nz,
+            int materialId
     ) {
         Vector3f normal = new Vector3f(nx, ny, nz);
         return new Quad(
@@ -146,13 +187,15 @@ public final class GranularSurfaceMesher {
                 new Vector3f(x1, 0, z),
                 new Vector3f(x1, h1, z),
                 new Vector3f(x0, h0, z),
-                normal, new Vector3f(normal), new Vector3f(normal), new Vector3f(normal)
+                normal, new Vector3f(normal), new Vector3f(normal), new Vector3f(normal),
+                materialId
         );
     }
 
     private static Quad sideQuadZ(
             float z0, float h0, float z1, float h1, float x,
-            float nx, float ny, float nz
+            float nx, float ny, float nz,
+            int materialId
     ) {
         Vector3f normal = new Vector3f(nx, ny, nz);
         return new Quad(
@@ -160,7 +203,8 @@ public final class GranularSurfaceMesher {
                 new Vector3f(x, 0, z1),
                 new Vector3f(x, h1, z1),
                 new Vector3f(x, h0, z0),
-                normal, new Vector3f(normal), new Vector3f(normal), new Vector3f(normal)
+                normal, new Vector3f(normal), new Vector3f(normal), new Vector3f(normal),
+                materialId
         );
     }
 

@@ -1,10 +1,11 @@
 package com.piotrek.groundworks.terrain.storage;
 
-import com.piotrek.groundworks.GroundworksMod;
 import com.piotrek.groundworks.networking.GranularCellSyncPayload;
 import com.piotrek.groundworks.terrain.cell.DirtyFlags;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
 import net.minecraft.core.BlockPos;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ClientGranularStorage {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("pw_groundworks.client_storage");
     private static final Map<Long, GranularCell> CELLS = new ConcurrentHashMap<>();
 
     private ClientGranularStorage() {}
@@ -42,6 +44,7 @@ public final class ClientGranularStorage {
                 cell.setCompositionUnits(payload.compositionUnits());
             }
             cell.markDirty(DirtyFlags.MESH);
+            cell.setRevision(payload.revision());
             CELLS.put(key, cell);
         } else {
             cell.setMaterialId(payload.materialId());
@@ -59,9 +62,10 @@ public final class ClientGranularStorage {
                 cell.setCompositionUnits(payload.compositionUnits());
             }
             cell.markDirty(DirtyFlags.MESH);
+            cell.setRevision(payload.revision());
         }
 
-        GroundworksMod.LOGGER.debug(
+        LOGGER.debug(
                 "[Groundworks-Client] Updated cell at {} (units={}, rev={})",
                 pos, cell.unitCount(), payload.revision());
     }

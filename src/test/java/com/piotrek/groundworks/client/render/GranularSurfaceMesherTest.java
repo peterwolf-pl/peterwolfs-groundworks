@@ -216,4 +216,41 @@ class GranularSurfaceMesherTest {
         assertNotSame(mesh1, mesh3, "Should build fresh mesh on revision mismatch");
         assertEquals(cell.revision(), mesh3.revision());
     }
+
+    @Test
+    @DisplayName("CellMesh groups quads by material accurately for homogeneous cell")
+    void testQuadsByMaterialHomogeneousCell() {
+        GranularCell cell = GranularCell.full(GranularMaterialRegistry.DIRT);
+        CellMesh mesh = GranularSurfaceMesher.generateMesh(cell);
+
+        assertEquals(96, mesh.quads().size());
+        assertEquals(96, mesh.quadsForMaterial(GranularMaterialRegistry.DIRT.id()).size());
+        assertEquals(0, mesh.quadsForMaterial(GranularMaterialRegistry.SAND.id()).size());
+        assertEquals(0, mesh.quadsForMaterial(GranularMaterialRegistry.GRAVEL.id()).size());
+        assertEquals(0, mesh.quadsForMaterial(GranularMaterialRegistry.COBBLESTONE.id()).size());
+
+        for (GranularSurfaceMesher.Quad quad : mesh.quads()) {
+            assertEquals(GranularMaterialRegistry.DIRT.id(), quad.materialId());
+        }
+    }
+
+    @Test
+    @DisplayName("CellMesh groups quads by material for mixture cell")
+    void testQuadsByMaterialMixtureCell() {
+        GranularCell cell = new GranularCell();
+        cell.setMaterialId(GranularMaterialRegistry.DIRT.id());
+        cell.addFromBottom(256); // 256 units dirt
+        cell.setCompositionUnits(new int[]{0, 128, 128, 0, 0}); // 50% dirt, 50% sand
+
+        CellMesh mesh = GranularSurfaceMesher.generateMesh(cell);
+        assertFalse(mesh.isEmpty());
+
+        int dirtCount = mesh.quadsForMaterial(GranularMaterialRegistry.DIRT.id()).size();
+        int sandCount = mesh.quadsForMaterial(GranularMaterialRegistry.SAND.id()).size();
+
+        assertTrue(dirtCount > 0, "Should have dirt quads in 50/50 mix");
+        assertTrue(sandCount > 0, "Should have sand quads in 50/50 mix");
+        assertEquals(mesh.quads().size(), dirtCount + sandCount,
+                "All quads must belong to either dirt or sand in this mix");
+    }
 }
