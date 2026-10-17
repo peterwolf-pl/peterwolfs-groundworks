@@ -9,6 +9,7 @@ import com.piotrek.groundworks.networking.GranularCellSyncPayload;
 import com.piotrek.groundworks.terrain.storage.GranularWorldStorage;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -63,7 +64,7 @@ public class GroundworksMod implements ModInitializer {
         GroundworksItems.register();
 
         // Register network payload types
-        PayloadTypeRegistry.clientboundPlay().register(
+        PayloadTypeRegistry.playS2C().register(
                 GranularCellSyncPayload.TYPE,
                 GranularCellSyncPayload.CODEC
         );
@@ -84,6 +85,14 @@ public class GroundworksMod implements ModInitializer {
                     storage.tick();
                 }
             });
+        });
+
+        // Unload granular cells from memory when chunks are unloaded
+        ServerChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> {
+            GranularWorldStorage storage = GranularWorldStorage.get(level);
+            if (storage != null) {
+                storage.unloadChunk(chunk.getPos().x, chunk.getPos().z);
+            }
         });
 
         LOGGER.info("[Groundworks] Initialization complete");

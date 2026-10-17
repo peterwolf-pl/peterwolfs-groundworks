@@ -6,20 +6,29 @@ import com.piotrek.groundworks.client.render.GranularSurfaceMesher.CellMesh;
 import com.piotrek.groundworks.client.render.GranularSurfaceMesher.Quad;
 import com.piotrek.groundworks.terrain.cell.GranularCell;
 import com.piotrek.groundworks.terrain.storage.ClientGranularStorage;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /** Renders cached, textured granular heightfield meshes in world space. */
 public final class GranularTerrainRenderer {
+
+    private static final int DIRT_ID = 1;
+    private static final int SAND_ID = 2;
+    private static final int GRAVEL_ID = 3;
+    private static final int COBBLESTONE_ID = 4;
 
     private static final Identifier DIRT_TEXTURE =
             Identifier.withDefaultNamespace("textures/block/dirt.png");
@@ -30,89 +39,117 @@ public final class GranularTerrainRenderer {
     private static final Identifier COBBLESTONE_TEXTURE =
             Identifier.withDefaultNamespace("textures/block/cobblestone.png");
 
+    private static final double MAX_RENDER_DISTANCE = 64.0;
+    private static final double MAX_RENDER_DISTANCE_SQ = MAX_RENDER_DISTANCE * MAX_RENDER_DISTANCE;
+
+    private record CellDraw(
+            float relX,
+            float relY,
+            float relZ,
+            int packedLight,
+            List<Quad> quads
+    ) {}
+
     private GranularTerrainRenderer() {}
 
-    public static void render(LevelRenderContext context) {
+    public static void render(WorldRenderContext context) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return;
 
         Map<Long, GranularCell> cells = ClientGranularStorage.allCells();
         if (cells.isEmpty()) return;
 
-        Vec3 camera = context.levelState().cameraRenderState.pos;
-        if (camera == null) return;
+        var cameraState = context.worldState().cameraRenderState;
+        if (cameraState == null || cameraState.pos == null) return;
+        Vec3 camera = cameraState.pos;
 
-        submitMaterial(context, cells, camera, 1, DIRT_TEXTURE);
-        submitMaterial(context, cells, camera, 2, SAND_TEXTURE);
-        submitMaterial(context, cells, camera, 3, GRAVEL_TEXTURE);
-        submitMaterial(context, cells, camera, 4, COBBLESTONE_TEXTURE);
+        List<CellDraw> dirtDraws = new ArrayList<>();
+        List<CellDraw> sandDraws = new ArrayList<>();
+        List<CellDraw> gravelDraws = new ArrayList<>();
+        List<CellDraw> cobblestoneDraws = new ArrayList<>();
+
+        // Single pass over all client cells with distance and chunk visibility culling
+        for (var entry : cells.entrySet()) {
+            GranularCell cell = entry.getValue();
+            if (cell.isEmpty()) continue;
+
+            long packedPos = entry.getKey();
+            BlockPos pos = BlockPos.of(packedPos);
+
+            double dx = pos.getX() + 0.5 - camera.x;
+            double dy = pos.getY() + 0.5 - camera.y;
+            double dz = pos.getZ() + 0.5 - camera.z;
+            if (dx * dx + dy * dy + dz * dz > MAX_RENDER_DISTANCE_SQ) continue;
+
+            if (context.worldRenderer() != null && !context.worldRenderer().isSectionCompiledAndVisible(pos)) continue;
+
+            CellMesh mesh = GranularMeshCache.getOrBuild(packedPos, cell);
+            if (mesh.isEmpty()) continue;
+
+            float relX = (float) (pos.getX() - camera.x);
+            float relY = (float) (pos.getY() - camera.y);
+            float relZ = (float) (pos.getZ() - camera.z);
+
+            int blockLight = client.level.getBrightness(LightLayer.BLOCK, pos.above());
+            int skyLight = client.level.getBrightness(LightLayer.SKY, pos.above());
+            int packedLight = (skyLight << 20) | (blockLight << 4);
+
+            List<Quad> dirtQuads = mesh.quadsForMaterial(DIRT_ID);
+            if (!dirtQuads.isEmpty()) {
+                dirtDraws.add(new CellDraw(relX, relY, relZ, packedLight, dirtQuads));
+            }
+
+            List<Quad> sandQuads = mesh.quadsForMaterial(SAND_ID);
+            if (!sandQuads.isEmpty()) {
+                sandDraws.add(new CellDraw(relX, relY, relZ, packedLight, sandQuads));
+            }
+
+            List<Quad> gravelQuads = mesh.quadsForMaterial(GRAVEL_ID);
+            if (!gravelQuads.isEmpty()) {
+                gravelDraws.add(new CellDraw(relX, relY, relZ, packedLight, gravelQuads));
+            }
+
+            List<Quad> cobbleQuads = mesh.quadsForMaterial(COBBLESTONE_ID);
+            if (!cobbleQuads.isEmpty()) {
+                cobblestoneDraws.add(new CellDraw(relX, relY, relZ, packedLight, cobbleQuads));
+            }
+        }
+
+        // Submit only batches that have geometry to render
+        if (!dirtDraws.isEmpty()) {
+            submitBatch(context, DIRT_TEXTURE, dirtDraws);
+        }
+        if (!sandDraws.isEmpty()) {
+            submitBatch(context, SAND_TEXTURE, sandDraws);
+        }
+        if (!gravelDraws.isEmpty()) {
+            submitBatch(context, GRAVEL_TEXTURE, gravelDraws);
+        }
+        if (!cobblestoneDraws.isEmpty()) {
+            submitBatch(context, COBBLESTONE_TEXTURE, cobblestoneDraws);
+        }
     }
 
-    private static void submitMaterial(
-            LevelRenderContext context,
-            Map<Long, GranularCell> cells,
-            Vec3 camera,
-            int materialId,
-            Identifier texture
+    private static void submitBatch(
+            WorldRenderContext context,
+            Identifier texture,
+            List<CellDraw> draws
     ) {
-        PoseStack poseStack = context.poseStack();
-        Minecraft client = Minecraft.getInstance();
-
-        context.submitNodeCollector().submitCustomGeometry(
+        PoseStack poseStack = context.matrices() != null ? context.matrices() : new PoseStack();
+        context.commandQueue().submitCustomGeometry(
                 poseStack,
                 RenderTypes.entityCutout(texture),
                 (pose, consumer) -> {
-                    for (var entry : cells.entrySet()) {
-                        GranularCell cell = entry.getValue();
-                        if (cell.isEmpty() || cell.unitsOfMaterial(materialId) <= 0) continue;
-
-                        long packedPos = entry.getKey();
-                        BlockPos pos = BlockPos.of(packedPos);
-                        double dx = pos.getX() + 0.5 - camera.x;
-                        double dy = pos.getY() + 0.5 - camera.y;
-                        double dz = pos.getZ() + 0.5 - camera.z;
-                        if (dx * dx + dy * dy + dz * dz > 64.0 * 64.0) continue;
-
-                        CellMesh mesh = GranularMeshCache.getOrBuild(packedPos, cell);
-                        if (mesh.isEmpty()) continue;
-
-                        float relX = (float) (pos.getX() - camera.x);
-                        float relY = (float) (pos.getY() - camera.y);
-                        float relZ = (float) (pos.getZ() - camera.z);
-
-                        int blockLight = client.level.getBrightness(LightLayer.BLOCK, pos.above());
-                        int skyLight = client.level.getBrightness(LightLayer.SKY, pos.above());
-                        int packedLight = (skyLight << 20) | (blockLight << 4);
-
-                        for (Quad quad : mesh.quads()) {
-                            if (visualMaterialForQuad(cell, pos, quad) != materialId) continue;
-                            emitVertex(consumer, pose, quad.v0(), quad.n0(), relX, relY, relZ, packedLight);
-                            emitVertex(consumer, pose, quad.v1(), quad.n1(), relX, relY, relZ, packedLight);
-                            emitVertex(consumer, pose, quad.v2(), quad.n2(), relX, relY, relZ, packedLight);
-                            emitVertex(consumer, pose, quad.v3(), quad.n3(), relX, relY, relZ, packedLight);
+                    for (CellDraw draw : draws) {
+                        for (Quad quad : draw.quads()) {
+                            emitVertex(consumer, pose, quad.v0(), quad.n0(), draw.relX(), draw.relY(), draw.relZ(), draw.packedLight());
+                            emitVertex(consumer, pose, quad.v1(), quad.n1(), draw.relX(), draw.relY(), draw.relZ(), draw.packedLight());
+                            emitVertex(consumer, pose, quad.v2(), quad.n2(), draw.relX(), draw.relY(), draw.relZ(), draw.packedLight());
+                            emitVertex(consumer, pose, quad.v3(), quad.n3(), draw.relX(), draw.relY(), draw.relZ(), draw.packedLight());
                         }
                     }
                 }
         );
-    }
-
-    private static int visualMaterialForQuad(
-            GranularCell cell,
-            BlockPos pos,
-            Quad quad
-    ) {
-        float cx = (quad.v0().x + quad.v1().x + quad.v2().x + quad.v3().x) * 0.25f;
-        float cy = (quad.v0().y + quad.v1().y + quad.v2().y + quad.v3().y) * 0.25f;
-        float cz = (quad.v0().z + quad.v1().z + quad.v2().z + quad.v3().z) * 0.25f;
-
-        int mx = clampMicro((int) Math.floor(cx * GranularCell.RESOLUTION));
-        int my = clampMicro((int) Math.floor(cy * GranularCell.RESOLUTION));
-        int mz = clampMicro((int) Math.floor(cz * GranularCell.RESOLUTION));
-        return cell.visualMaterialId(pos.asLong(), mx, my, mz);
-    }
-
-    private static int clampMicro(int value) {
-        return Math.max(0, Math.min(GranularCell.RESOLUTION - 1, value));
     }
 
     private static void emitVertex(

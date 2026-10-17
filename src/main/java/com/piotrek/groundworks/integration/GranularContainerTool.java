@@ -76,25 +76,25 @@ public abstract class GranularContainerTool extends Item {
         if (targetMaterial == null
                 || targetMaterial == GranularMaterial.EMPTY
                 || !acceptsMaterial(targetMaterial)) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("This tool cannot excavate this material")
-                            .withStyle(ChatFormatting.GRAY));
+                            .withStyle(ChatFormatting.GRAY), true);
             return InteractionResult.FAIL;
         }
 
         if (storedMat != null && !storedMat.equals(targetMaterial.name())) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("Tool contains " + storedMat
                             + ", cannot mix with " + targetMaterial.name())
-                            .withStyle(ChatFormatting.RED));
+                            .withStyle(ChatFormatting.RED), true);
             return InteractionResult.FAIL;
         }
 
         int freeCapacity = MAX_CAPACITY - storedUnits;
         if (freeCapacity <= 0) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("Tool full!")
-                            .withStyle(ChatFormatting.RED));
+                            .withStyle(ChatFormatting.RED), true);
             return InteractionResult.FAIL;
         }
 
@@ -103,16 +103,16 @@ public abstract class GranularContainerTool extends Item {
                 serverLevel, pos, hitLocation, requestUnits);
 
         if (!result.success()) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("Nothing excavated")
-                            .withStyle(ChatFormatting.GRAY));
+                            .withStyle(ChatFormatting.GRAY), true);
             return InteractionResult.FAIL;
         }
 
         if (!acceptsMaterial(result.material())) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("Unexpected material: " + result.material().name())
-                            .withStyle(ChatFormatting.RED));
+                            .withStyle(ChatFormatting.RED), true);
             return InteractionResult.FAIL;
         }
 
@@ -120,11 +120,11 @@ public abstract class GranularContainerTool extends Item {
         setStoredUnits(stack, newStored);
         setStoredMaterial(stack, result.material().name());
 
-        player.sendOverlayMessage(
+        player.displayClientMessage(
                 Component.literal("Excavated " + result.unitsRemoved()
                         + " " + result.material().name()
                         + " units. Stored: " + newStored)
-                        .withStyle(ChatFormatting.GOLD));
+                        .withStyle(ChatFormatting.GOLD), true);
 
         return InteractionResult.SUCCESS;
     }
@@ -139,17 +139,17 @@ public abstract class GranularContainerTool extends Item {
             String storedMat
     ) {
         if (storedUnits <= 0 || storedMat == null) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("Tool is empty - excavate first")
-                            .withStyle(ChatFormatting.YELLOW));
+                            .withStyle(ChatFormatting.YELLOW), true);
             return InteractionResult.SUCCESS;
         }
 
         GranularMaterial material = GranularMaterialRegistry.byName(storedMat);
         if (material == null || material == GranularMaterial.EMPTY) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("Unknown stored material: " + storedMat)
-                            .withStyle(ChatFormatting.RED));
+                            .withStyle(ChatFormatting.RED), true);
             return InteractionResult.FAIL;
         }
 
@@ -160,9 +160,9 @@ public abstract class GranularContainerTool extends Item {
                 serverLevel, depositPos, material, toDeposit);
 
         if (!result.success()) {
-            player.sendOverlayMessage(
+            player.displayClientMessage(
                     Component.literal("Cannot deposit here")
-                            .withStyle(ChatFormatting.RED));
+                            .withStyle(ChatFormatting.RED), true);
             return InteractionResult.FAIL;
         }
 
@@ -172,11 +172,11 @@ public abstract class GranularContainerTool extends Item {
             setStoredMaterial(stack, null);
         }
 
-        player.sendOverlayMessage(
+        player.displayClientMessage(
                 Component.literal("Deposited " + result.unitsDeposited()
                         + " " + material.name()
                         + " units. Stored: " + newStored)
-                        .withStyle(ChatFormatting.GREEN));
+                        .withStyle(ChatFormatting.GREEN), true);
 
         return InteractionResult.SUCCESS;
     }

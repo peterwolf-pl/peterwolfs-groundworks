@@ -51,7 +51,7 @@ public class GranularWorldStorage extends SavedData {
     );
 
     public static final SavedDataType<GranularWorldStorage> TYPE = new SavedDataType<>(
-            TYPE_ID,
+            TYPE_ID.toString(),
             GranularWorldStorage::new,
             CODEC,
             DataFixTypes.SAVED_DATA_COMMAND_STORAGE
@@ -276,4 +276,31 @@ public class GranularWorldStorage extends SavedData {
     }
 
     public ServerLevel getLevel() { return level; }
+
+    /**
+     * Unloads cells belonging to the specified chunk when that chunk is saved and unloaded.
+     * Prevents unbounded heap growth as players explore new terrain.
+     */
+    public void unloadChunk(int chunkX, int chunkZ) {
+        int minX = chunkX << 4;
+        int maxX = minX + 15;
+        int minZ = chunkZ << 4;
+        int maxZ = minZ + 15;
+
+        List<Long> toRemove = new ArrayList<>();
+        for (Long packed : cells.keySet()) {
+            BlockPos pos = BlockPos.of(packed);
+            int x = pos.getX();
+            int z = pos.getZ();
+            if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
+                toRemove.add(packed);
+            }
+        }
+
+        for (Long packed : toRemove) {
+            cells.remove(packed);
+            dirtySet.remove(packed);
+            dirtyQueue.remove(packed);
+        }
+    }
 }

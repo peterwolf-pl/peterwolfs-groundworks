@@ -1,0 +1,22 @@
+{
+  "projectId": 1730742,
+  "title": "Peterwolf's Groundworks",
+  "summary": "Volumetric deformable granular terrain engine for Minecraft.",
+  "description": "# Peterwolf's Groundworks\n\n**Volumetric Deformable Granular Terrain Engine for Minecraft Java 26.3 (Fabric)**\n\nPeterwolf's Groundworks introduces a high-performance granular terrain simulation engine designed as a reusable foundation for heavy machinery mods (excavators, bulldozers, dump trucks, conveyors, wheelbarrows, tunnel boring machines).\n\n---\n\n## Key Features\n\n- **Strict Volume Conservation:** Material is never created or destroyed. Authoritative volume calculations are strictly integer microvoxels ($8 \\times 8 \\times 8 = 512$ units per block $= 1.000\\text{ m}^3$).\n- **Exact Mixed Materials:** One cell can contain dirt, sand, gravel, and cobblestone at exact integer proportions while occupancy remains compact.\n- **Compact Bitset Storage:** 512-bit occupancy bitset (`long[8]`, 64 bytes) plus a small per-material composition table per active cell.\n- **Lazy World Conversion:** The world remains vanilla until excavated, deposited into, or deformed.\n- **Built-in Materials:** Dirt, sand, gravel, and granular cobblestone produced by crushing stone. Cobblestone uses stable 4x4x4 microvoxel visual clusters for coarse rubble.\n- **Clean Public API:** `GroundworksApi.excavate(...)` and `GroundworksApi.deposit(...)` ready for external vehicle and machine mods.\n- **Developer / Hand Tools:**\n  - `debug_excavation_tool` - shovel that removes 32 units on right-click and deposits on sneak-right-click.\n  - `groundworks_pickaxe` - pickaxe that crushes stone into granular cobblestone in 128-unit chunks, exactly 1/4 block per use, with the same 16-block internal capacity.\n  - `/groundworks debug` and `/groundworks inspect` commands.\n- **Full World Persistence:** Granular terrain survives save and reload via Minecraft 26.3 Codec SavedData.\n\n---\n\n## Build & Test\n\n```bash\n./gradlew build\n./gradlew test\n```\n\n---\n\n## License\n\nMIT © 2026 Piotrek (Peterwolf)\n",
+  "enabled": false,
+  "releaseType": "release",
+  "changelogType": "markdown",
+  "changelog": "",
+  "manualRelease": false,
+  "media": {
+    "youtube": [],
+    "gallery": []
+  },
+  "dependencies": [
+    {
+      "slug": "fabric-api",
+      "type": "requiredDependency"
+    }
+  ],
+  "publishedVersion": null
+}

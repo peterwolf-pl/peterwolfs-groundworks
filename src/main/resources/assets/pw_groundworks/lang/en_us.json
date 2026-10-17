@@ -2,5 +2,7 @@
   "item.pw_groundworks.debug_excavation_tool": "Groundworks Debug Shovel",
   "item.pw_groundworks.groundworks_pickaxe": "Groundworks Pickaxe",
   "item.pw_groundworks.white_hard_hat": "White Hard Hat",
-  "command.pw_groundworks.debug": "Peterwolf's Groundworks Debug Information"
+  "command.pw_groundworks.debug": "Peterwolf's Groundworks Debug Information",
+  "key.pw_groundworks.camera_zoom": "Third Person Zoom Modifier",
+  "category.pw_groundworks.controls": "Peterwolf's Groundworks"
 }

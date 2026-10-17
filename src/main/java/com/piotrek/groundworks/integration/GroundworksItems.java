@@ -1,7 +1,7 @@
 package com.piotrek.groundworks.integration;
 
 import com.piotrek.groundworks.GroundworksMod;
-import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -79,7 +79,7 @@ public final class GroundworksItems {
                     .humanoidArmor(WHITE_HARD_HAT_MATERIAL, ArmorType.HELMET)
     );
 
-    public static final CreativeModeTab TAB = FabricCreativeModeTab.builder()
+    public static final CreativeModeTab TAB = FabricItemGroup.builder()
             .title(Component.translatable("itemGroup.pw_groundworks.group"))
             .icon(DEBUG_EXCAVATION_TOOL::getDefaultInstance)
             .displayItems((parameters, output) -> {

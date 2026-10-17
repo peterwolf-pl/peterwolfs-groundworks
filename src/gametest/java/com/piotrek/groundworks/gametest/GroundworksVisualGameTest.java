@@ -38,21 +38,20 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
                 .setUseConsistentSettings(true)
                 .create()) {
             TestServerContext server = singleplayer.getServer();
-            TestServerConnection connection = singleplayer.getConnection();
 
             configureWorld(server);
             setupScenes(server);
-            connection.waitForChunksRender();
+            singleplayer.getClientWorld().waitForChunksRender();
             // Let spawn/camera system messages fade before the first baseline.
             context.waitTicks(200);
 
-            runSinglePile(context, connection, server);
-            runContinuousPour(context, connection, server);
-            runMaterialComparison(context, connection, server);
-            runBoundaryComparison(context, connection, server);
-            runFourCellBoundary(context, connection, server);
-            runSlopePour(context, connection, server);
-            runExcavation(context, connection, server);
+            runSinglePile(context, server);
+            runContinuousPour(context, server);
+            runMaterialComparison(context, server);
+            runBoundaryComparison(context, server);
+            runFourCellBoundary(context, server);
+            runSlopePour(context, server);
+            runExcavation(context, server);
             runMaterialAwareExcavation(server);
             context.waitTicks(80);
 
@@ -115,7 +114,6 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
 
     private static void runSinglePile(
             ClientGameTestContext context,
-            TestServerConnection connection,
             TestServerContext server
     ) {
         setPerspective(server, 0, 0);
@@ -123,7 +121,7 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         // Bulk debug deposits begin as a temporary vertical stack. Capture after
         // the first visible settling phase; continuous-pour has the true mid-flow frame.
         context.waitTicks(20);
-        capture(context, connection, "visual_test_single_pile_forming");
+        capture(context, "visual_test_single_pile_forming");
 
         context.waitTicks(180);
         PileMetrics metrics = metrics(server, 0, 0, 7);
@@ -131,15 +129,14 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         assertEquals(4096, metrics.totalUnits(), "single pile material conservation");
         assertEquals(0, metrics.dirtyCells(), "single pile stabilization");
         assertBalanced(metrics, 0, 0, 1);
-        capture(context, connection, "visual_test_single_pile_settled");
+        capture(context, "visual_test_single_pile_settled");
 
         setTopView(server, 0, 0);
-        capture(context, connection, "visual_test_single_pile_top");
+        capture(context, "visual_test_single_pile_top");
     }
 
     private static void runContinuousPour(
             ClientGameTestContext context,
-            TestServerConnection connection,
             TestServerContext server
     ) {
         setPerspective(server, 24, 0);
@@ -147,7 +144,7 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
             server.runCommand("groundworks deposit sand 128 24 180 0");
             context.waitTicks(2);
             if (i == 7) {
-                capture(context, connection, "visual_test_continuous_pour_mid");
+                capture(context, "visual_test_continuous_pour_mid");
             }
         }
         context.waitTicks(120);
@@ -155,12 +152,11 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         log("continuous-pour", metrics);
         assertEquals(2048, metrics.totalUnits(), "continuous pour material conservation");
         assertEquals(0, metrics.dirtyCells(), "continuous pour stabilization");
-        capture(context, connection, "visual_test_continuous_pour_settled");
+        capture(context, "visual_test_continuous_pour_settled");
     }
 
     private static void runMaterialComparison(
             ClientGameTestContext context,
-            TestServerConnection connection,
             TestServerContext server
     ) {
         server.runCommand("groundworks deposit dirt 2048 -48 180 24");
@@ -182,16 +178,15 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         }
 
         setPerspective(server, -48, 24);
-        capture(context, connection, "visual_test_material_dirt");
+        capture(context, "visual_test_material_dirt");
         setPerspective(server, -24, 24);
-        capture(context, connection, "visual_test_material_sand");
+        capture(context, "visual_test_material_sand");
         setPerspective(server, 0, 24);
-        capture(context, connection, "visual_test_material_gravel");
+        capture(context, "visual_test_material_gravel");
     }
 
     private static void runBoundaryComparison(
             ClientGameTestContext context,
-            TestServerConnection connection,
             TestServerContext server
     ) {
         server.runCommand("groundworks deposit dirt 3072 16 180 -24");
@@ -211,14 +206,13 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         }
 
         setPerspective(server, 16, -24);
-        capture(context, connection, "visual_test_chunk_boundary");
+        capture(context, "visual_test_chunk_boundary");
         setPerspective(server, 40, -24);
-        capture(context, connection, "visual_test_chunk_reference");
+        capture(context, "visual_test_chunk_reference");
     }
 
     private static void runFourCellBoundary(
             ClientGameTestContext context,
-            TestServerConnection connection,
             TestServerContext server
     ) {
         server.runCommand("groundworks deposit dirt 1024 47 180 -1");
@@ -232,12 +226,11 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         assertEquals(4096, metrics.totalUnits(), "four-cell boundary material conservation");
         assertEquals(0, metrics.dirtyCells(), "four-cell boundary stabilization");
         setTopView(server, 48, 0);
-        capture(context, connection, "visual_test_cell_boundary");
+        capture(context, "visual_test_cell_boundary");
     }
 
     private static void runSlopePour(
             ClientGameTestContext context,
-            TestServerConnection connection,
             TestServerContext server
     ) {
         server.runCommand("groundworks deposit sand 2048 0 180 42");
@@ -249,12 +242,11 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
             throw new AssertionError("slope material did not move downhill: centerZ=" + metrics.centerZ());
         }
         server.runCommand("teleport @a 8 184 48 90 18");
-        capture(context, connection, "visual_test_slope_pour");
+        capture(context, "visual_test_slope_pour");
     }
 
     private static void runExcavation(
             ClientGameTestContext context,
-            TestServerConnection connection,
             TestServerContext server
     ) {
         for (int x = 23; x <= 25; x++) {
@@ -266,14 +258,14 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
         setTopView(server, 24, 48);
         server.runCommand("groundworks excavate 192 24 180 48");
         context.waitTick();
-        capture(context, connection, "visual_test_flat_excavation_fresh");
+        capture(context, "visual_test_flat_excavation_fresh");
         context.waitTicks(100);
 
         PileMetrics metrics = metrics(server, 24, 48, 7);
         log("flat-excavation", metrics);
         assertEquals(9L * 512L - 192L, metrics.totalUnits(), "excavation material conservation");
         assertEquals(0, metrics.dirtyCells(), "excavation stabilization");
-        capture(context, connection, "visual_test_flat_excavation_settled");
+        capture(context, "visual_test_flat_excavation_settled");
     }
 
     private static void runMaterialAwareExcavation(TestServerContext server) {
@@ -388,11 +380,9 @@ public final class GroundworksVisualGameTest implements FabricClientGameTest {
 
     private static void capture(
             ClientGameTestContext context,
-            TestServerConnection connection,
             String name
     ) {
         context.waitTicks(3);
-        connection.waitForClientboundPackets();
         context.takeScreenshot(TestScreenshotOptions.of(name)
                 .disableCounterPrefix()
                 .withSize(854, 480)
