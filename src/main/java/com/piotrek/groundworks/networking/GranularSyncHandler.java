@@ -15,12 +15,30 @@ public final class GranularSyncHandler {
     private GranularSyncHandler() {}
 
     /**
+     * Build the appropriate sync payload (remove, full, or sparse delta) based on cell state.
+     */
+    public static GranularCellSyncPayload createPayload(BlockPos pos, GranularCell cell) {
+        if (cell.isEmpty()) {
+            cell.clearLastSyncedOccupancy();
+            return GranularCellSyncPayload.remove(pos);
+        }
+
+        long[] previous = cell.lastSyncedOccupancy();
+        if (previous == null) {
+            cell.recordSyncedOccupancy();
+            return GranularCellSyncPayload.full(pos, cell);
+        } else {
+            GranularCellSyncPayload payload = GranularCellSyncPayload.delta(pos, cell, previous);
+            cell.recordSyncedOccupancy();
+            return payload;
+        }
+    }
+
+    /**
      * Send a cell update (full or delta) to all players tracking the cell's chunk.
      */
     public static void sendCellUpdate(ServerLevel level, BlockPos pos, GranularCell cell) {
-        GranularCellSyncPayload payload = cell.isEmpty()
-                ? GranularCellSyncPayload.remove(pos)
-                : GranularCellSyncPayload.full(pos, cell);
+        GranularCellSyncPayload payload = createPayload(pos, cell);
 
         for (ServerPlayer player : PlayerLookup.tracking(level, pos)) {
             ServerPlayNetworking.send(player, payload);

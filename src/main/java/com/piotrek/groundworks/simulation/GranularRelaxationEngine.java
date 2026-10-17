@@ -146,9 +146,9 @@ public final class GranularRelaxationEngine {
 
     static float computeReposeHeightSteps(GranularCell cell) {
         if (cell == null || cell.isEmpty()) return 6.0f;
-        double radians = Math.toRadians(cell.effectiveAngleOfRepose());
+        double radians = Math.toRadians(CellPhysics.effectiveAngleOfRepose(cell));
         return (float) (Math.tan(radians) * GranularCell.RESOLUTION
-                + cell.effectiveCohesion() * 2.0f);
+                + CellPhysics.effectiveCohesion(cell) * 2.0f);
     }
 
     private static float surfaceHeight(BlockPos pos, int units) {

@@ -43,12 +43,9 @@ public final class GranularCell {
     private int unitCount;
     private int revision;
     private int dirtyFlags;
+    private long[] lastSyncedOccupancy;
 
-    private final byte[] columnHeights = new byte[RESOLUTION * RESOLUTION];
-
-    public GranularCell() {
-        Arrays.fill(columnHeights, (byte) -1);
-    }
+    public GranularCell() {}
 
     public static GranularCell full(GranularMaterial material) {
         GranularCell cell = new GranularCell();
@@ -320,26 +317,21 @@ public final class GranularCell {
     }
 
     public int getColumnHeight(int x, int z) {
-        int ci = x + RESOLUTION * z;
-        if (columnHeights[ci] == -1) {
-            columnHeights[ci] = (byte) computeColumnHeight(x, z);
-        }
-        return columnHeights[ci];
-    }
-
-    private int computeColumnHeight(int x, int z) {
+        if (unitCount == 0) return -1;
+        if (unitCount == TOTAL_UNITS) return RESOLUTION - 1;
+        long mask = 1L << (x | (z << 3));
         for (int y = RESOLUTION - 1; y >= 0; y--) {
-            if (isSet(x, y, z)) return y;
+            if ((occupancy[y] & mask) != 0L) return y;
         }
         return -1;
     }
 
     private void invalidateColumn(int x, int z) {
-        columnHeights[x + RESOLUTION * z] = -1;
+        // Obsolete: column heights are now computed on-demand bitwise with zero memory overhead.
     }
 
     public void invalidateAllColumns() {
-        Arrays.fill(columnHeights, (byte) -1);
+        // Obsolete: column heights are now computed on-demand bitwise with zero memory overhead.
     }
 
     public void markDirty(int flag) {
@@ -457,6 +449,25 @@ public final class GranularCell {
 
     public int pureMaterialId() {
         return composition.pureMaterialId();
+    }
+
+    public long[] lastSyncedOccupancy() {
+        return lastSyncedOccupancy;
+    }
+
+    public void recordSyncedOccupancy() {
+        if (lastSyncedOccupancy == null) {
+            lastSyncedOccupancy = new long[LONGS];
+        }
+        System.arraycopy(occupancy, 0, lastSyncedOccupancy, 0, LONGS);
+    }
+
+    public void clearLastSyncedOccupancy() {
+        lastSyncedOccupancy = null;
+    }
+
+    public void setRevision(int revision) {
+        this.revision = revision;
     }
 
     public float effectiveAngleOfRepose() {

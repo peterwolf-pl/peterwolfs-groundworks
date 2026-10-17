@@ -13,6 +13,12 @@ import java.util.Comparator;
  */
 public final class GranularContainerTransferApi {
 
+    /**
+     * Extra blocks searched below the release point. Machine collision boxes stay
+     * short, but an excavator or loader can pour from well above the intake.
+     */
+    private static final double DOWNWARD_SEARCH_PADDING = 16.0D;
+
     private GranularContainerTransferApi() {}
 
     /**
@@ -33,7 +39,7 @@ public final class GranularContainerTransferApi {
         double radius = Math.max(0.5D, searchRadius);
         AABB area = new AABB(
                 worldPoint.x - radius,
-                worldPoint.y - radius,
+                worldPoint.y - radius - DOWNWARD_SEARCH_PADDING,
                 worldPoint.z - radius,
                 worldPoint.x + radius,
                 worldPoint.y + radius,

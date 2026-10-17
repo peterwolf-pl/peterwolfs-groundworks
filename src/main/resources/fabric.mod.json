@@ -11,9 +11,15 @@
     "main": ["com.piotrek.groundworks.GroundworksMod"],
     "client": ["com.piotrek.groundworks.client.GroundworksClient"]
   },
+  "mixins": [
+    {
+      "config": "pw_groundworks.client.mixins.json",
+      "environment": "client"
+    }
+  ],
   "depends": {
     "fabricloader": ">=0.19.5",
-    "minecraft": "~26.3",
+    "minecraft": "~26.2",
     "java": ">=25",
     "fabric-api": "*"
   }
